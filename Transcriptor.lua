@@ -34,7 +34,7 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 --
 
 plugin.defaultDB = {
-	enabled = true,
+	enabled = false,
 	silent = false,
 }
 
