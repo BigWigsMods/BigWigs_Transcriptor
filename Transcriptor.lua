@@ -24,7 +24,8 @@ if L then
 	L.silent_desc = "Don't print to chat when logging starts or stops."
 
 	L.logs = "Stored logs - Click to delete"
-	L.events = "%d stored events"
+	L.events = "%d stored events over %s seconds."
+	L.win = "|cff20ff20Win!|r "
 end
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
@@ -85,9 +86,13 @@ local function GetOptions()
 
 	for key, log in next, logs do
 		if key ~= "ignoredEvents" then
-			local desc, duration
-			if log.total then
-				duration = log.total[#log.total]:match("<(.-)>")
+			local desc = nil
+			local count = log.total and #log.total or 0
+			if count > 0 then
+				desc = L.events:format(count, log.total[count]:match("^<(.-)%s"))
+				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
+					desc = L.win..desc
+				end
 			end
 			options.args.logs.args[key] = {
 				type = "execute",
