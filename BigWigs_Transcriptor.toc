@@ -1,0 +1,9 @@
+## Interface: 50200
+## Title: Big Wigs |cffff0000+|r|cffffffffTranscriptor|r
+## Author: Neb
+## Version: 1.0
+## Dependencies: BigWigs, Transcriptor
+## LoadOnDemand: 1
+## X-BigWigs-LoadOn-CoreLoaded: 1
+
+Transcriptor.lua
