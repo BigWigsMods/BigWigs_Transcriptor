@@ -120,7 +120,7 @@ function plugin:OnPluginEnable()
 	if self.db.profile.enabled then
 		self:RegisterMessage("BigWigs_OnBossEngage")
 		self:RegisterMessage("BigWigs_OnBossWin")
-		self:RegisterMessage("BigWigs_OnBossReboot")
+		self:RegisterMessage("BigWigs_OnBossWipe")
 	end
 end
 
@@ -156,8 +156,8 @@ function plugin:BigWigs_OnBossWin(event, module)
 	end
 end
 
-function plugin:BigWigs_OnBossReboot(event, module, isWipe)
-	if isWipe and logging then
+function plugin:BigWigs_OnBossWipe(event, module)
+	if logging then
 		if Transcriptor:IsLogging() then
 			Transcriptor:StopLog(self.db.profile.silent)
 		end
