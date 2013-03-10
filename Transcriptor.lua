@@ -20,9 +20,6 @@ if L then
 	L.title = "Transcriptor"
 	L.description = "Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."
 
-	L.silent = "Silent"
-	L.silent_desc = "Don't print to chat when logging starts or stops."
-
 	L.logs = "Stored logs - Click to delete"
 	L.events = "%d stored events over %s seconds."
 	L.win = "|cff20ff20Win!|r "
@@ -35,7 +32,6 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
 plugin.defaultDB = {
 	enabled = false,
-	silent = false,
 }
 
 local function GetOptions()
@@ -62,23 +58,15 @@ local function GetOptions()
 					plugin:Disable()
 					plugin:Enable()
 				end,
-				width = "full",
 				order = 2,
-			},
-			silent = {
-				type = "toggle",
-				name = L.silent,
-				desc = L.silent_desc,
-				disabled = function() return not plugin.db.profile.enabled end,
-				width = "full",
-				order = 3,
 			},
 			logs = {
 				type = "group",
 				inline = true,
 				name = L.logs,
-				order = 10,
 				func = function(info) logs[info[#info]] = nil end,
+				order = 10,
+				width = "full",
 				args = {},
 			},
 		},
@@ -118,15 +106,17 @@ plugin.subPanelOptions = {
 
 function plugin:OnPluginEnable()
 	if self.db.profile.enabled then
-		self:RegisterMessage("BigWigs_OnBossEngage")
-		self:RegisterMessage("BigWigs_OnBossWin")
-		self:RegisterMessage("BigWigs_OnBossWipe")
+		if BigWigs then
+			self:RegisterMessage("BigWigs_OnBossEngage", "Start")
+			self:RegisterMessage("BigWigs_OnBossWin", "Stop")
+			self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
+		end
 	end
 end
 
 function plugin:OnPluginDisable()
 	if logging and Transcriptor:IsLogging() then
-		Transcriptor:StopLog(self.db.profile.silent)
+		Transcriptor:StopLog()
 	end
 	logging = nil
 end
@@ -135,31 +125,23 @@ end
 -- Event Handlers
 --
 
-function plugin:BigWigs_OnBossEngage(event, module, diff)
-	if diff and diff > 2 and diff < 7 then
+function plugin:Start()
+	local diff = select(3, GetInstanceInfo()) or 0
+	if diff > 2 and diff < 7 then
 		-- should the plugin stop your current log and take over? (current behavior)
 		-- or leave Transcriptor alone and not do anything (starting or stopping) until you stop the current log yourself?
 		if Transcriptor:IsLogging() then
 			Transcriptor:StopLog(true)
 		end
-		Transcriptor:StartLog(self.db.profile.silent)
+		Transcriptor:StartLog()
 		logging = true
 	end
 end
 
-function plugin:BigWigs_OnBossWin(event, module)
+function plugin:Stop()
 	if logging then
 		if Transcriptor:IsLogging() then
-			Transcriptor:StopLog(self.db.profile.silent)
-		end
-		logging = nil
-	end
-end
-
-function plugin:BigWigs_OnBossWipe(event, module)
-	if logging then
-		if Transcriptor:IsLogging() then
-			Transcriptor:StopLog(self.db.profile.silent)
+			Transcriptor:StopLog()
 		end
 		logging = nil
 	end
