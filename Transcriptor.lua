@@ -1,3 +1,5 @@
+local ADDON_NAME = ...
+
 -------------------------------------------------------------------------------
 -- Module Declaration
 --
@@ -20,7 +22,11 @@ if L then
 	L.title = "Transcriptor"
 	L.description = "Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."
 
+	L.reset = "Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."
+	L.high_memory = "Disabling auto-logging because Transcriptor is currently using %.02f MB of memory. Clear some logs before re-enabling."
+
 	L.logs = "Stored logs - Click to delete"
+	L.no_logs = "No logs recorded"
 	L.events = "%d stored events over %s seconds."
 	L.win = "|cff20ff20Win!|r "
 end
@@ -90,6 +96,14 @@ local function GetOptions()
 			}
 		end
 	end
+	if not next(options.args.logs.args) then
+		options.args.logs.args["no_logs"] = {
+			type = "description",
+			name = "\n"..L.no_logs.."\n",
+			fontSize = "medium",
+			width = "full",
+		}
+	end
 
 	return options
 end
@@ -104,7 +118,15 @@ plugin.subPanelOptions = {
 -- Initialization
 --
 
+function plugin:Print(...)
+	print("|cffffff00", ...)
+end
+
 function plugin:OnPluginEnable()
+	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
+		TranscriptDB = {}
+		self:Print(L.reset)
+	end
 	if self.db.profile.enabled then
 		if BigWigs then
 			self:RegisterMessage("BigWigs_OnBossEngage", "Start")
@@ -126,6 +148,16 @@ end
 --
 
 function plugin:Start()
+	-- check memory before starting
+	local mem = GetAddOnMemoryUsage(ADDON_NAME)/1000
+	if mem > 64 then
+		self:Print(L.high_memory:format(mem))
+		self.db.profile.enabled = nil
+		self:Disable()
+		self:Enable()
+		return
+	end
+
 	local diff = select(3, GetInstanceInfo()) or 0
 	if diff > 2 and diff < 7 then
 		-- should the plugin stop your current log and take over? (current behavior)
