@@ -54,12 +54,12 @@ if L then
 	L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
 	L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."] = true
-	L["Disabling auto-logging because Transcriptor is currently using %.02f MB of memory. Clear some logs before re-enabling."] = true
+	L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."] = true
 
 	L["Enable for LFR"] = true
 	L["Stored logs - Click to delete"] = true
 	L["No logs recorded"] = true
-	L["%d stored events over %s seconds."] = true
+	L["%d stored events over %.01f seconds."] = true
 	L["|cff20ff20Win!|r "] = true
 	L["Ignored Events"] = true
 end
@@ -138,7 +138,7 @@ local function GetOptions()
 			local desc = nil
 			local count = log.total and #log.total or 0
 			if count > 0 then
-				desc = L["%d stored events over %s seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
+				desc = L["%d stored events over %.01f seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
 				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
 					desc = L["|cff20ff20Win!|r "]..desc
 				end
