@@ -12,6 +12,37 @@ if not plugin then return end
 --
 
 local logging = nil
+local events = {
+	"PLAYER_REGEN_DISABLED",
+	"PLAYER_REGEN_ENABLED",
+	"CHAT_MSG_MONSTER_EMOTE",
+	"CHAT_MSG_MONSTER_SAY",
+	"CHAT_MSG_MONSTER_WHISPER",
+	"CHAT_MSG_MONSTER_YELL",
+	"CHAT_MSG_RAID_WARNING",
+	"CHAT_MSG_RAID_BOSS_EMOTE",
+	"RAID_BOSS_EMOTE",
+	"RAID_BOSS_WHISPER",
+	"PLAYER_TARGET_CHANGED",
+	"UNIT_SPELLCAST_START",
+	"UNIT_SPELLCAST_STOP",
+	"UNIT_SPELLCAST_SUCCEEDED",
+	"UNIT_SPELLCAST_INTERRUPTED",
+	"UNIT_SPELLCAST_CHANNEL_START",
+	"UNIT_SPELLCAST_CHANNEL_STOP",
+	"UNIT_POWER",
+	"UPDATE_WORLD_STATES",
+	"WORLD_STATE_UI_TIMER_UPDATE",
+	"COMBAT_LOG_EVENT_UNFILTERED",
+	"INSTANCE_ENCOUNTER_ENGAGE_UNIT",
+	"BigWigs_Message",
+	"BigWigs_StartBar",
+	"BigWigs_Debug",
+}
+for i,v in ipairs(events) do
+	events[v] = v
+	events[i] = nil
+end
 
 -------------------------------------------------------------------------------
 -- Locale
@@ -19,16 +50,18 @@ local logging = nil
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Big Wigs: Transcriptor", "enUS", true)
 if L then
-	L.title = "Transcriptor"
-	L.description = "Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."
+	L["Transcriptor"] = true
+	L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
-	L.reset = "Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."
-	L.high_memory = "Disabling auto-logging because Transcriptor is currently using %.02f MB of memory. Clear some logs before re-enabling."
+	L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."] = true
+	L["Disabling auto-logging because Transcriptor is currently using %.02f MB of memory. Clear some logs before re-enabling."] = true
 
-	L.logs = "Stored logs - Click to delete"
-	L.no_logs = "No logs recorded"
-	L.events = "%d stored events over %s seconds."
-	L.win = "|cff20ff20Win!|r "
+	L["Enable for LFR"] = true
+	L["Stored logs - Click to delete"] = true
+	L["No logs recorded"] = true
+	L["%d stored events over %s seconds."] = true
+	L["|cff20ff20Win!|r "] = true
+	L["Ignored Events"] = true
 end
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
@@ -38,20 +71,22 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
 plugin.defaultDB = {
 	enabled = false,
+	enabledLFR = false,
+	ignoredEvents = {}
 }
 
 local function GetOptions()
 	local logs = Transcriptor:GetAll()
 
 	local options = {
-		name = L.title,
+		name = L["Transcriptor"],
 		type = "group",
 		get = function(info) return plugin.db.profile[info[#info]] end,
 		set = function(info, value) plugin.db.profile[info[#info]] = value end,
 		args = {
 			heading = {
 				type = "description",
-				name = L.description.."\n",
+				name = L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."].."\n",
 				fontSize = "medium",
 				width = "full",
 				order = 1,
@@ -66,14 +101,34 @@ local function GetOptions()
 				end,
 				order = 2,
 			},
+			enabledLFR = {
+				type = "toggle",
+				name = L["Enable for LFR"],
+				set = function(info, value)
+					plugin.db.profile[info[#info]] = value
+					plugin:Disable()
+					plugin:Enable()
+				end,
+				disabled = function() return not plugin.db.profile.enabled end,
+				order = 3,
+			},
 			logs = {
 				type = "group",
 				inline = true,
-				name = L.logs,
+				name = L["Stored logs - Click to delete"],
 				func = function(info) logs[info[#info]] = nil end,
 				order = 10,
 				width = "full",
 				args = {},
+			},
+			ignoredEvents = {
+				type = "multiselect",
+				name = L["Ignored Events"],
+				get = function(info, key) return TranscriptDB.ignoredEvents[key] end,
+				set = function(info, value) TranscriptDB.ignoredEvents[value] = not TranscriptDB.ignoredEvents[value] end,
+				values = events,
+				order = 20,
+				width = "full",
 			},
 		},
 	}
@@ -83,9 +138,9 @@ local function GetOptions()
 			local desc = nil
 			local count = log.total and #log.total or 0
 			if count > 0 then
-				desc = L.events:format(count, log.total[count]:match("^<(.-)%s"))
+				desc = L["%d stored events over %s seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
 				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
-					desc = L.win..desc
+					desc = L["|cff20ff20Win!|r "]..desc
 				end
 			end
 			options.args.logs.args[key] = {
@@ -99,7 +154,7 @@ local function GetOptions()
 	if not next(options.args.logs.args) then
 		options.args.logs.args["no_logs"] = {
 			type = "description",
-			name = "\n"..L.no_logs.."\n",
+			name = "\n"..L["No logs recorded"].."\n",
 			fontSize = "medium",
 			width = "full",
 		}
@@ -110,7 +165,7 @@ end
 
 plugin.subPanelOptions = {
 	key = "Big Wigs: Transcriptor",
-	name = L.title,
+	name = L["Transcriptor"],
 	options = GetOptions,
 }
 
@@ -124,8 +179,11 @@ end
 
 function plugin:OnPluginEnable()
 	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
-		TranscriptDB = {}
-		self:Print(L.reset)
+		self:Print(L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."])
+		TranscriptDB = { ignoredEvents = {} }
+		for k, v in next, self.db.profiles.ignoredEvents do
+			TranscriptDB.ignoredEvents[k] = v
+		end
 	end
 	if self.db.profile.enabled then
 		if BigWigs then
@@ -151,7 +209,7 @@ function plugin:Start()
 	-- check memory before starting
 	local mem = GetAddOnMemoryUsage(ADDON_NAME)/1000
 	if mem > 64 then
-		self:Print(L.high_memory:format(mem))
+		self:Print(L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
 		self.db.profile.enabled = nil
 		self:Disable()
 		self:Enable()
@@ -159,11 +217,15 @@ function plugin:Start()
 	end
 
 	local diff = select(3, GetInstanceInfo()) or 0
-	if diff > 2 and diff < 7 then
+	if diff > 2 and diff < (self.db.profile.enabledLFR and 8 or 7) then
 		-- should the plugin stop your current log and take over? (current behavior)
 		-- or leave Transcriptor alone and not do anything (starting or stopping) until you stop the current log yourself?
 		if Transcriptor:IsLogging() then
 			Transcriptor:StopLog(true)
+		end
+		wipe(self.db.profiles.ignoredEvents)
+		for k, v in next, TranscriptDB.ignoredEvents do
+			if v == true then self.db.profiles.ignoredEvents[k] = v end
 		end
 		Transcriptor:StartLog()
 		logging = true
