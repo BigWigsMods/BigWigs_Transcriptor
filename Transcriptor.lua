@@ -223,7 +223,7 @@ function plugin:Start()
 		if Transcriptor:IsLogging() then
 			Transcriptor:StopLog(true)
 		end
-		wipe(self.db.profiles.ignoredEvents)
+		wipe(self.db.profile.ignoredEvents)
 		for k, v in next, TranscriptDB.ignoredEvents do
 			if v == true then self.db.profiles.ignoredEvents[k] = v end
 		end
