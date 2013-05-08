@@ -37,7 +37,7 @@ local events = {
 	"INSTANCE_ENCOUNTER_ENGAGE_UNIT",
 	"BigWigs_Message",
 	"BigWigs_StartBar",
-	"BigWigs_Debug",
+	--"BigWigs_Debug",
 }
 for i,v in ipairs(events) do
 	events[v] = v
@@ -181,7 +181,7 @@ function plugin:OnPluginEnable()
 	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
 		self:Print(L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."])
 		TranscriptDB = { ignoredEvents = {} }
-		for k, v in next, self.db.profiles.ignoredEvents do
+		for k, v in next, self.db.profile.ignoredEvents do
 			TranscriptDB.ignoredEvents[k] = v
 		end
 	end
