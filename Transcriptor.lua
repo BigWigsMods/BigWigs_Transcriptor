@@ -125,7 +125,7 @@ local function GetOptions()
 				type = "multiselect",
 				name = L["Ignored Events"],
 				get = function(info, key) return TranscriptDB.ignoredEvents[key] end,
-				set = function(info, value) TranscriptDB.ignoredEvents[value] = not TranscriptDB.ignoredEvents[value] end,
+				set = function(info, value) TranscriptDB.ignoredEvents[value] = not TranscriptDB.ignoredEvents[value] or nil end,
 				values = events,
 				order = 20,
 				width = "full",
@@ -184,7 +184,10 @@ function plugin:OnPluginEnable()
 		for k, v in next, self.db.profile.ignoredEvents do
 			TranscriptDB.ignoredEvents[k] = v
 		end
+	elseif not TranscriptDB.ignoredEvents then
+		TranscriptDB.ignoredEvents = {}
 	end
+
 	if self.db.profile.enabled then
 		if BigWigs then
 			self:RegisterMessage("BigWigs_OnBossEngage", "Start")
@@ -208,7 +211,7 @@ end
 function plugin:Start()
 	-- check memory before starting
 	local mem = GetAddOnMemoryUsage(ADDON_NAME)/1000
-	if mem > 64 then
+	if mem > 40 then
 		self:Print(L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
 		self.db.profile.enabled = nil
 		self:Disable()
