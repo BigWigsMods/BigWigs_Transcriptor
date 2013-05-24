@@ -204,6 +204,11 @@ function plugin:OnPluginDisable()
 	logging = nil
 end
 
+SLASH_BWTRANSCRIPTOR1 = "/bwts"
+SlashCmdList["BWTRANSCRIPTOR"] = function()
+	InterfaceOptionsFrame_OpenToCategory("Transcriptor")
+end
+
 -------------------------------------------------------------------------------
 -- Event Handlers
 --
