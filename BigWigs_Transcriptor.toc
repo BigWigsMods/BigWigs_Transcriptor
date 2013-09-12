@@ -1,4 +1,4 @@
-## Interface: 50300
+## Interface: 50400
 ## Title: Big Wigs |cffff0000+|r|cffffffffTranscriptor|r
 ## Author: Neb
 ## Version: @project-version@
