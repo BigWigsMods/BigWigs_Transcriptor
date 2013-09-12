@@ -44,6 +44,23 @@ for i,v in ipairs(events) do
 	events[i] = nil
 end
 
+local difficulties = {
+	false, --  1 Normal
+	false, --  2 Heroic
+	true,  --  3 10 Player
+	true,  --  4 25 Player
+	true,  --  5 10 Player (Heroic)
+	true,  --  6 25 Player (Heroic)
+	true,  --  7 Looking For Raid
+	false, --  8 Challenge Mode
+	false, --  9 40 Player
+	false, -- 10 nil
+	false, -- 11 Heroic Scenario
+	false, -- 12 Normal Scenario
+	false, -- 13 nil
+	true,  -- 14 Flexible
+}
+
 -------------------------------------------------------------------------------
 -- Locale
 --
@@ -56,7 +73,6 @@ if L then
 	L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."] = true
 	L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."] = true
 
-	L["Enable for LFR"] = true
 	L["Stored logs - Click to delete"] = true
 	L["No logs recorded"] = true
 	L["%d stored events over %.01f seconds."] = true
@@ -71,7 +87,6 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
 plugin.defaultDB = {
 	enabled = false,
-	enabledLFR = false,
 	ignoredEvents = {}
 }
 
@@ -100,17 +115,6 @@ local function GetOptions()
 					plugin:Enable()
 				end,
 				order = 2,
-			},
-			enabledLFR = {
-				type = "toggle",
-				name = L["Enable for LFR"],
-				set = function(info, value)
-					plugin.db.profile[info[#info]] = value
-					plugin:Disable()
-					plugin:Enable()
-				end,
-				disabled = function() return not plugin.db.profile.enabled end,
-				order = 3,
 			},
 			logs = {
 				type = "group",
@@ -224,8 +228,8 @@ function plugin:Start()
 		return
 	end
 
-	local diff = select(3, GetInstanceInfo()) or 0
-	if diff > 2 and diff < (self.db.profile.enabledLFR and 8 or 7) then
+	local diff = select(3, GetInstanceInfo()) or 1
+	if difficulties[diff] then
 		-- should the plugin stop your current log and take over? (current behavior)
 		-- or leave Transcriptor alone and not do anything (starting or stopping) until you stop the current log yourself?
 		if Transcriptor:IsLogging() then
