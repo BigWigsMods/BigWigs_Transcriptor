@@ -58,7 +58,9 @@ local difficulties = {
 	false, -- 11 Heroic Scenario
 	false, -- 12 Normal Scenario
 	false, -- 13 nil
-	true,  -- 14 Flexible
+	true,  -- 14 Normal
+	true,  -- 15 Heroic
+	true,  -- 16 Mythic
 }
 
 -------------------------------------------------------------------------------
@@ -217,7 +219,7 @@ end
 -- Event Handlers
 --
 
-function plugin:Start()
+function plugin:Start(_, _, diff)
 	-- check memory before starting
 	local mem = GetAddOnMemoryUsage(ADDON_NAME)/1000
 	if mem > 40 then
@@ -228,8 +230,7 @@ function plugin:Start()
 		return
 	end
 
-	local diff = select(3, GetInstanceInfo()) or 1
-	if difficulties[diff] then
+	if diff and difficulties[diff] then
 		-- should the plugin stop your current log and take over? (current behavior)
 		-- or leave Transcriptor alone and not do anything (starting or stopping) until you stop the current log yourself?
 		if Transcriptor:IsLogging() then
