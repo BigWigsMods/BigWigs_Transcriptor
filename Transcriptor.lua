@@ -1,4 +1,3 @@
-local ADDON_NAME = ...
 
 -------------------------------------------------------------------------------
 -- Module Declaration
@@ -11,7 +10,6 @@ if not plugin then return end
 -- Locals
 --
 
-local logging = nil
 local events = {
 	"PLAYER_REGEN_DISABLED",
 	"PLAYER_REGEN_ENABLED",
@@ -45,8 +43,8 @@ for i,v in ipairs(events) do
 end
 
 local difficulties = {
-	false, --  1 Normal
-	false, --  2 Heroic
+	true,  --  1 Normal
+	true,  --  2 Heroic
 	true,  --  3 10 Player
 	true,  --  4 25 Player
 	true,  --  5 10 Player (Heroic)
@@ -61,6 +59,7 @@ local difficulties = {
 	true,  -- 14 Normal
 	true,  -- 15 Heroic
 	true,  -- 16 Mythic
+	true,  -- 17 Looking For Raid
 }
 
 -------------------------------------------------------------------------------
@@ -78,7 +77,7 @@ if L then
 	L["Stored logs - Click to delete"] = true
 	L["No logs recorded"] = true
 	L["%d stored events over %.01f seconds."] = true
-	L["|cff20ff20Win!|r "] = true
+	L["|cff20ff20Win!|r"] = true
 	L["Ignored Events"] = true
 end
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
@@ -122,7 +121,13 @@ local function GetOptions()
 				type = "group",
 				inline = true,
 				name = L["Stored logs - Click to delete"],
-				func = function(info) logs[info[#info]] = nil end,
+				func = function(info)
+					local key = info.arg
+					if key then
+						logs[key] = nil
+					end
+					GameTooltip:Hide()
+				end,
 				order = 10,
 				width = "full",
 				args = {},
@@ -146,7 +151,7 @@ local function GetOptions()
 			if count > 0 then
 				desc = L["%d stored events over %.01f seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
 				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
-					desc = L["|cff20ff20Win!|r "]..desc
+					desc = L["|cff20ff20Win!|r"]..desc
 				end
 			end
 			options.args.logs.args[key] = {
@@ -154,6 +159,7 @@ local function GetOptions()
 				name = key,
 				desc = desc,
 				width = "full",
+				arg = key,
 			}
 		end
 	end
@@ -195,23 +201,21 @@ function plugin:OnPluginEnable()
 	end
 
 	if self.db.profile.enabled then
-		if BigWigs then
-			self:RegisterMessage("BigWigs_OnBossEngage", "Start")
-			self:RegisterMessage("BigWigs_OnBossWin", "Stop")
-			self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
-		end
+		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
+		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
+		self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
 	end
 end
 
 function plugin:OnPluginDisable()
-	if logging and Transcriptor:IsLogging() then
+	if Transcriptor:IsLogging() then
 		Transcriptor:StopLog()
 	end
-	logging = nil
 end
 
 SLASH_BWTRANSCRIPTOR1 = "/bwts"
 SlashCmdList["BWTRANSCRIPTOR"] = function()
+	InterfaceOptionsFrame_OpenToCategory("Transcriptor")
 	InterfaceOptionsFrame_OpenToCategory("Transcriptor")
 end
 
@@ -220,19 +224,8 @@ end
 --
 
 function plugin:Start(_, _, diff)
-	-- check memory before starting
-	local mem = GetAddOnMemoryUsage(ADDON_NAME)/1000
-	if mem > 40 then
-		self:Print(L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
-		self.db.profile.enabled = nil
-		self:Disable()
-		self:Enable()
-		return
-	end
-
 	if diff and difficulties[diff] then
-		-- should the plugin stop your current log and take over? (current behavior)
-		-- or leave Transcriptor alone and not do anything (starting or stopping) until you stop the current log yourself?
+		-- stop your current log and start a new one
 		if Transcriptor:IsLogging() then
 			Transcriptor:StopLog(true)
 		end
@@ -241,16 +234,22 @@ function plugin:Start(_, _, diff)
 			if v == true then self.db.profile.ignoredEvents[k] = v end
 		end
 		Transcriptor:StartLog()
-		logging = true
 	end
 end
 
 function plugin:Stop()
-	if logging then
-		if Transcriptor:IsLogging() then
-			Transcriptor:StopLog()
+	if Transcriptor:IsLogging() then
+		Transcriptor:StopLog()
+
+		-- check memory
+		UpdateAddOnMemoryUsage()
+		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+		if mem > 40 then
+			self:Print(L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
+			self.db.profile.enabled = false
+			self:Disable()
+			self:Enable()
 		end
-		logging = nil
 	end
 end
 
