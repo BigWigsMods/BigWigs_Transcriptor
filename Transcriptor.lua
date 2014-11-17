@@ -82,6 +82,8 @@ if L then
 end
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
+-- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB 
+
 -------------------------------------------------------------------------------
 -- Options
 --
@@ -215,8 +217,9 @@ end
 
 SLASH_BWTRANSCRIPTOR1 = "/bwts"
 SlashCmdList["BWTRANSCRIPTOR"] = function()
-	InterfaceOptionsFrame_OpenToCategory("Transcriptor")
-	InterfaceOptionsFrame_OpenToCategory("Transcriptor")
+	InterfaceOptionsFrame_OpenToCategory("Big Wigs")
+	InterfaceOptionsFrame_OpenToCategory("Big Wigs")
+	InterfaceOptionsFrame_OpenToCategory(L["Transcriptor"])
 end
 
 -------------------------------------------------------------------------------
