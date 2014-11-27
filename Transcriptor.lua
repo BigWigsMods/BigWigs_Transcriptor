@@ -10,57 +10,7 @@ if not plugin then return end
 -- Locals
 --
 
-local events = {
-	"PLAYER_REGEN_DISABLED",
-	"PLAYER_REGEN_ENABLED",
-	"CHAT_MSG_MONSTER_EMOTE",
-	"CHAT_MSG_MONSTER_SAY",
-	"CHAT_MSG_MONSTER_WHISPER",
-	"CHAT_MSG_MONSTER_YELL",
-	"CHAT_MSG_RAID_WARNING",
-	"CHAT_MSG_RAID_BOSS_EMOTE",
-	"RAID_BOSS_EMOTE",
-	"RAID_BOSS_WHISPER",
-	"PLAYER_TARGET_CHANGED",
-	"UNIT_SPELLCAST_START",
-	"UNIT_SPELLCAST_STOP",
-	"UNIT_SPELLCAST_SUCCEEDED",
-	"UNIT_SPELLCAST_INTERRUPTED",
-	"UNIT_SPELLCAST_CHANNEL_START",
-	"UNIT_SPELLCAST_CHANNEL_STOP",
-	"UNIT_POWER",
-	"UPDATE_WORLD_STATES",
-	"WORLD_STATE_UI_TIMER_UPDATE",
-	"COMBAT_LOG_EVENT_UNFILTERED",
-	"INSTANCE_ENCOUNTER_ENGAGE_UNIT",
-	"BigWigs_Message",
-	"BigWigs_StartBar",
-	--"BigWigs_Debug",
-}
-for i,v in ipairs(events) do
-	events[v] = v
-	events[i] = nil
-end
-
-local difficulties = {
-	true,  --  1 Normal
-	true,  --  2 Heroic
-	true,  --  3 10 Player
-	true,  --  4 25 Player
-	true,  --  5 10 Player (Heroic)
-	true,  --  6 25 Player (Heroic)
-	true,  --  7 Looking For Raid
-	false, --  8 Challenge Mode
-	false, --  9 40 Player
-	false, -- 10 nil
-	false, -- 11 Heroic Scenario
-	false, -- 12 Normal Scenario
-	false, -- 13 nil
-	true,  -- 14 Normal
-	true,  -- 15 Heroic
-	true,  -- 16 Mythic
-	true,  -- 17 Looking For Raid
-}
+local events = {}
 
 -------------------------------------------------------------------------------
 -- Locale
@@ -82,7 +32,7 @@ if L then
 end
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
--- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB 
+-- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
 
 -------------------------------------------------------------------------------
 -- Options
@@ -99,8 +49,6 @@ local function GetOptions()
 	local options = {
 		name = L["Transcriptor"],
 		type = "group",
-		get = function(info) return plugin.db.profile[info[#info]] end,
-		set = function(info, value) plugin.db.profile[info[#info]] = value end,
 		args = {
 			heading = {
 				type = "description",
@@ -112,8 +60,9 @@ local function GetOptions()
 			enabled = {
 				type = "toggle",
 				name = ENABLE,
+				get = function(info) return plugin.db.profile.enabled end,
 				set = function(info, value)
-					plugin.db.profile[info[#info]] = value
+					plugin.db.profile.enabled = value
 					plugin:Disable()
 					plugin:Enable()
 				end,
@@ -138,7 +87,11 @@ local function GetOptions()
 				type = "multiselect",
 				name = L["Ignored Events"],
 				get = function(info, key) return TranscriptDB.ignoredEvents[key] end,
-				set = function(info, value) TranscriptDB.ignoredEvents[value] = not TranscriptDB.ignoredEvents[value] or nil end,
+				set = function(info, key, value)
+					local value = value or nil
+					TranscriptDB.ignoredEvents[key] = value
+					plugin.db.profile.ignoredEvents[key] = value
+				end,
 				values = events,
 				order = 20,
 				width = "full",
@@ -202,6 +155,10 @@ function plugin:OnPluginEnable()
 		TranscriptDB.ignoredEvents = {}
 	end
 
+	for i,v in ipairs(Transcriptor.events) do
+		events[v] = v
+	end
+
 	if self.db.profile.enabled then
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
 		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
@@ -227,17 +184,11 @@ end
 --
 
 function plugin:Start(_, _, diff)
-	if diff and difficulties[diff] then
-		-- stop your current log and start a new one
-		if Transcriptor:IsLogging() then
-			Transcriptor:StopLog(true)
-		end
-		wipe(self.db.profile.ignoredEvents)
-		for k, v in next, TranscriptDB.ignoredEvents do
-			if v == true then self.db.profile.ignoredEvents[k] = v end
-		end
-		Transcriptor:StartLog()
+	-- stop your current log and start a new one
+	if Transcriptor:IsLogging() then
+		Transcriptor:StopLog(true)
 	end
+	Transcriptor:StartLog()
 end
 
 function plugin:Stop()
