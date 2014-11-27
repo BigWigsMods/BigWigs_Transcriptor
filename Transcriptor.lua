@@ -198,8 +198,8 @@ function plugin:Stop()
 		-- check memory
 		UpdateAddOnMemoryUsage()
 		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-		if mem > 40 then
-			self:Print(L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
+		if mem > 60 then
+			print("\n|cffff2020" .. L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
 			self.db.profile.enabled = false
 			self:Disable()
 			self:Enable()
