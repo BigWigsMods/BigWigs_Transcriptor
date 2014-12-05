@@ -10,7 +10,7 @@ if not plugin then return end
 -- Locals
 --
 
-local events = {}
+local events = nil
 
 -------------------------------------------------------------------------------
 -- Locale
@@ -45,6 +45,13 @@ plugin.defaultDB = {
 
 local function GetOptions()
 	local logs = Transcriptor:GetAll()
+
+	if not events then
+		events = {}
+		for i,v in ipairs(Transcriptor.events) do
+			events[v] = v
+		end
+	end
 
 	local options = {
 		name = L["Transcriptor"],
@@ -153,10 +160,6 @@ function plugin:OnPluginEnable()
 		end
 	elseif not TranscriptDB.ignoredEvents then
 		TranscriptDB.ignoredEvents = {}
-	end
-
-	for i,v in ipairs(Transcriptor.events) do
-		events[v] = v
 	end
 
 	if self.db.profile.enabled then
