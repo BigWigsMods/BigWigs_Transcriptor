@@ -17,19 +17,19 @@ local events = nil
 --
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Big Wigs: Transcriptor", "enUS", true)
-if L then
-	L["Transcriptor"] = true
-	L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
+L["Transcriptor"] = true
+L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
-	L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."] = true
-	L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."] = true
+L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."] = true
+L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."] = true
+L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."] = true
 
-	L["Stored logs - Click to delete"] = true
-	L["No logs recorded"] = true
-	L["%d stored events over %.01f seconds."] = true
-	L["|cff20ff20Win!|r"] = true
-	L["Ignored Events"] = true
-end
+L["Stored logs - Click to delete"] = true
+L["No logs recorded"] = true
+L["%d stored events over %.01f seconds."] = true
+L["|cff20ff20Win!|r"] = true
+L["Ignored Events"] = true
+
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
 -- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
@@ -153,7 +153,7 @@ end
 
 function plugin:OnPluginEnable()
 	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
-		self:Print(L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your ui."])
+		self:Print(L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
 		TranscriptDB = { ignoredEvents = {} }
 		for k, v in next, self.db.profile.ignoredEvents do
 			TranscriptDB.ignoredEvents[k] = v
@@ -177,9 +177,7 @@ end
 
 SLASH_BWTRANSCRIPTOR1 = "/bwts"
 SlashCmdList["BWTRANSCRIPTOR"] = function()
-	InterfaceOptionsFrame_OpenToCategory("Big Wigs")
-	InterfaceOptionsFrame_OpenToCategory("Big Wigs")
-	InterfaceOptionsFrame_OpenToCategory(L["Transcriptor"])
+	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "Big Wigs: Transcriptor")
 end
 
 -------------------------------------------------------------------------------
@@ -202,10 +200,7 @@ function plugin:Stop()
 		UpdateAddOnMemoryUsage()
 		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
 		if mem > 60 then
-			print("\n|cffff2020" .. L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."]:format(mem))
-			self.db.profile.enabled = false
-			self:Disable()
-			self:Enable()
+			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
 		end
 	end
 end
