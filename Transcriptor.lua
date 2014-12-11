@@ -11,6 +11,7 @@ if not plugin then return end
 --
 
 local events = nil
+local logging = nil
 
 -------------------------------------------------------------------------------
 -- Locale
@@ -21,10 +22,11 @@ L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
 L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."] = true
-L["Disabling auto-logging because Transcriptor is currently using %.01f MB of memory. Clear some logs before re-enabling."] = true
 L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."] = true
 
-L["Stored logs - Click to delete"] = true
+L["Start with pull timer"] = true
+L["Start Transcriptor logging when a pull timer begins."] = true
+L["Stored logs (%s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds."] = true
 L["|cff20ff20Win!|r"] = true
@@ -40,6 +42,7 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
 plugin.defaultDB = {
 	enabled = false,
+	onpull = true,
 	ignoredEvents = {}
 }
 
@@ -52,6 +55,10 @@ local function GetOptions()
 			events[v] = v
 		end
 	end
+
+	UpdateAddOnMemoryUsage()
+	local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+	mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
 
 	local options = {
 		name = L["Transcriptor"],
@@ -75,16 +82,30 @@ local function GetOptions()
 				end,
 				order = 2,
 			},
+			onpull = {
+				type = "toggle",
+				name = L["Start with pull timer"],
+				desc = L["Start Transcriptor logging when a pull timer begins."],
+				get = function(info) return plugin.db.profile.onpull end,
+				set = function(info, value)
+					plugin.db.profile.onpull = value
+					plugin:Disable()
+					plugin:Enable()
+				end,
+				order = 3,
+			},
 			logs = {
 				type = "group",
 				inline = true,
-				name = L["Stored logs - Click to delete"],
+				name = L["Stored logs (%s) - Click to delete"]:format(mem),
 				func = function(info)
 					local key = info.arg
 					if key then
 						logs[key] = nil
 					end
 					GameTooltip:Hide()
+					collectgarbage()
+					LibStub("AceConfigRegistry-3.0"):NotifyChange("Big Wigs") -- update again, damit!
 				end,
 				order = 10,
 				width = "full",
@@ -101,7 +122,7 @@ local function GetOptions()
 				end,
 				values = events,
 				order = 20,
-				width = "full",
+				width = "double",
 			},
 		},
 	}
@@ -163,6 +184,9 @@ function plugin:OnPluginEnable()
 	end
 
 	if self.db.profile.enabled then
+		if self.db.profile.onpull then
+			self:RegisterMessage("BigWigs_StartPull", "Start")
+		end
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
 		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
 		self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
@@ -170,9 +194,10 @@ function plugin:OnPluginEnable()
 end
 
 function plugin:OnPluginDisable()
-	if Transcriptor:IsLogging() then
+	if Transcriptor:IsLogging() and logging then
 		Transcriptor:StopLog()
 	end
+	logging = nil
 end
 
 SLASH_BWTRANSCRIPTOR1 = "/bwts"
@@ -184,15 +209,19 @@ end
 -- Event Handlers
 --
 
-function plugin:Start(_, _, diff)
+function plugin:Start()
 	-- stop your current log and start a new one
-	if Transcriptor:IsLogging() then
+	if Transcriptor:IsLogging() and not logging then
 		Transcriptor:StopLog(true)
 	end
-	Transcriptor:StartLog()
+	if not Transcriptor:IsLogging() then
+		Transcriptor:StartLog()
+		logging = true
+	end
 end
 
 function plugin:Stop()
+	logging = nil
 	if Transcriptor:IsLogging() then
 		Transcriptor:StopLog()
 
