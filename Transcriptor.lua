@@ -218,7 +218,7 @@ function plugin:BigWigs_StartPull(_, _, seconds)
 	end
 end
 
-function plugin:BigWigs_StopBar(_, text)
+function plugin:BigWigs_StopBar(_, _, text)
 	if text == PL.pull and timer then
 		self:CancelTimer(timer)
 		timer = nil
