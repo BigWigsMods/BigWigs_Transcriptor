@@ -12,11 +12,14 @@ if not plugin then return end
 
 local events = nil
 local logging = nil
+local timer = nil
 
+-- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
 -------------------------------------------------------------------------------
 -- Locale
 --
 
+local PL = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Plugins")
 local L = LibStub("AceLocale-3.0"):NewLocale("Big Wigs: Transcriptor", "enUS", true)
 L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
@@ -25,7 +28,7 @@ L["Your Transcriptor DB has been reset! You can still view the contents of the D
 L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."] = true
 
 L["Start with pull timer"] = true
-L["Start Transcriptor logging when a pull timer begins."] = true
+L["Start Transcriptor logging from a pull timer at two seconds remaining."] = true
 L["Stored logs (%s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds."] = true
@@ -34,15 +37,13 @@ L["Ignored Events"] = true
 
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
--- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
-
 -------------------------------------------------------------------------------
 -- Options
 --
 
 plugin.defaultDB = {
 	enabled = false,
-	onpull = true,
+	onpull = false,
 	ignoredEvents = {}
 }
 
@@ -85,7 +86,7 @@ local function GetOptions()
 			onpull = {
 				type = "toggle",
 				name = L["Start with pull timer"],
-				desc = L["Start Transcriptor logging when a pull timer begins."],
+				desc = L["Start Transcriptor logging from a pull timer at two seconds remaining."],
 				get = function(info) return plugin.db.profile.onpull end,
 				set = function(info, value)
 					plugin.db.profile.onpull = value
@@ -105,7 +106,7 @@ local function GetOptions()
 					end
 					GameTooltip:Hide()
 					collectgarbage()
-					LibStub("AceConfigRegistry-3.0"):NotifyChange("Big Wigs") -- update again, damit!
+					LibStub("AceConfigRegistry-3.0"):NotifyChange("BigWigs") -- update again, damit!
 				end,
 				order = 10,
 				width = "full",
@@ -134,7 +135,7 @@ local function GetOptions()
 			if count > 0 then
 				desc = L["%d stored events over %.01f seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
 				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
-					desc = L["|cff20ff20Win!|r"]..desc
+					desc = ("%s %s"):format(L["|cff20ff20Win!|r"], desc)
 				end
 			end
 			options.args.logs.args[key] = {
@@ -168,13 +169,9 @@ plugin.subPanelOptions = {
 -- Initialization
 --
 
-function plugin:Print(...)
-	print("|cffffff00", ...)
-end
-
 function plugin:OnPluginEnable()
 	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
-		self:Print(L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
+		print("\n|cffff2020" .. L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
 		TranscriptDB = { ignoredEvents = {} }
 		for k, v in next, self.db.profile.ignoredEvents do
 			TranscriptDB.ignoredEvents[k] = v
@@ -185,7 +182,8 @@ function plugin:OnPluginEnable()
 
 	if self.db.profile.enabled then
 		if self.db.profile.onpull then
-			self:RegisterMessage("BigWigs_StartPull", "Start")
+			self:RegisterMessage("BigWigs_StartPull")
+			self:RegisterMessage("BigWigs_StopBar")
 		end
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
 		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
@@ -198,8 +196,10 @@ function plugin:OnPluginDisable()
 		Transcriptor:StopLog()
 	end
 	logging = nil
+	timer = nil
 end
 
+-- only available after the plugin is loaded. oh well.
 SLASH_BWTRANSCRIPTOR1 = "/bwts"
 SlashCmdList["BWTRANSCRIPTOR"] = function()
 	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "Big Wigs: Transcriptor")
@@ -209,7 +209,27 @@ end
 -- Event Handlers
 --
 
+function plugin:BigWigs_StartPull(_, _, seconds)
+	if seconds > 2 then
+		self:CancelTimer(timer)
+		timer = self:ScheduleTimer("Start", seconds-2)
+	else
+		self:Start()
+	end
+end
+
+function plugin:BigWigs_StopBar(_, text)
+	if text == PL.pull and timer then
+		self:CancelTimer(timer)
+		timer = nil
+	end
+end
+
 function plugin:Start()
+	if timer then
+		self:CancelTimer(timer)
+		timer = nil
+	end
 	-- stop your current log and start a new one
 	if Transcriptor:IsLogging() and not logging then
 		Transcriptor:StopLog(true)
