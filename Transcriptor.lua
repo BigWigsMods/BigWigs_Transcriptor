@@ -14,12 +14,11 @@ local events = nil
 local logging = nil
 local timer = nil
 
--- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
+-- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory LibStub SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
 -------------------------------------------------------------------------------
 -- Locale
 --
 
-local PL
 local L = LibStub("AceLocale-3.0"):NewLocale("Big Wigs: Transcriptor", "enUS", true)
 L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
@@ -44,7 +43,6 @@ L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 plugin.defaultDB = {
 	enabled = false,
 	onpull = false,
-	ignoredEvents = {}
 }
 
 local function GetOptions()
@@ -106,7 +104,6 @@ local function GetOptions()
 					end
 					GameTooltip:Hide()
 					collectgarbage()
-					LibStub("AceConfigRegistry-3.0"):NotifyChange("BigWigs") -- update again, damit!
 				end,
 				order = 10,
 				width = "full",
@@ -119,7 +116,7 @@ local function GetOptions()
 				set = function(info, key, value)
 					local value = value or nil
 					TranscriptDB.ignoredEvents[key] = value
-					plugin.db.profile.ignoredEvents[key] = value
+					plugin.db.global.ignoredEvents[key] = value
 				end,
 				values = events,
 				order = 20,
@@ -169,22 +166,40 @@ plugin.subPanelOptions = {
 -- Initialization
 --
 
+function plugin:BigWigs_ProfileUpdate()
+	self:Disable()
+	self:Enable()
+end
+
 function plugin:OnPluginEnable()
-	PL = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Plugins")
-	if Transcriptor and TranscriptDB == nil then -- try to fix memory overflow error
+	-- can't set a default global table as a plugin :(
+	if not self.db.global.ignoredEvents then
+		self.db.global.ignoredEvents = {}
+	end
+	-- cleanup old savedvars
+	if self.db.profile.ignoredEvents then
+		for k, v in next, self.db.profile.ignoredEvents do
+			self.db.global.ignoredEvents[k] = v
+		end
+		self.db.profile.ignoredEvents = nil
+	end
+
+	-- try to fix memory overflow error
+	if Transcriptor and TranscriptDB == nil then
 		print("\n|cffff2020" .. L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
 		TranscriptDB = { ignoredEvents = {} }
-		for k, v in next, self.db.profile.ignoredEvents do
+		for k, v in next, self.db.global.ignoredEvents do
 			TranscriptDB.ignoredEvents[k] = v
 		end
 	elseif not TranscriptDB.ignoredEvents then
 		TranscriptDB.ignoredEvents = {}
 	end
 
+	self:RegisterMessage("BigWigs_ProfileUpdate")
 	if self.db.profile.enabled then
 		if self.db.profile.onpull then
 			self:RegisterMessage("BigWigs_StartPull")
-			self:RegisterMessage("BigWigs_StopBar")
+			self:RegisterMessage("BigWigs_StopPull")
 		end
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
 		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
@@ -193,7 +208,7 @@ function plugin:OnPluginEnable()
 end
 
 function plugin:OnPluginDisable()
-	if Transcriptor:IsLogging() and logging then
+	if logging and Transcriptor:IsLogging() then
 		Transcriptor:StopLog()
 	end
 	logging = nil
@@ -219,8 +234,8 @@ function plugin:BigWigs_StartPull(_, _, seconds)
 	end
 end
 
-function plugin:BigWigs_StopBar(_, _, text)
-	if text == PL.pull and timer then
+function plugin:BigWigs_StopPull()
+	if timer then
 		self:CancelTimer(timer)
 		timer = nil
 	end
