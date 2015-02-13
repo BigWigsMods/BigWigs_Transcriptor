@@ -202,8 +202,8 @@ function plugin:OnPluginEnable()
 			self:RegisterMessage("BigWigs_StopPull")
 		end
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
-		self:RegisterMessage("BigWigs_OnBossWin", "Stop")
-		self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
+		self:RegisterMessage("BigWigs_OnBossWin")
+		self:RegisterMessage("BigWigs_OnBossWipe", "BigWigs_OnBossWin")
 	end
 end
 
@@ -254,6 +254,11 @@ function plugin:Start()
 		Transcriptor:StartLog()
 		logging = true
 	end
+end
+
+function plugin:BigWigs_OnBossWin()
+	-- catch the end event
+	self:ScheduleTimer("Stop", 1)
 end
 
 function plugin:Stop()
