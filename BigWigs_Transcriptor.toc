@@ -5,6 +5,7 @@
 ## Dependencies: BigWigs, Transcriptor
 ## LoadOnDemand: 1
 ## X-BigWigs-LoadOn-CoreLoaded: 1
+## X-BigWigs-LoadOn-Slash: /bwts
 
 Locales.lua
 Transcriptor.lua
