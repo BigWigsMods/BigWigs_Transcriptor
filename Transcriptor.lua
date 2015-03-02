@@ -131,7 +131,7 @@ local function GetOptions()
 			local count = log.total and #log.total or 0
 			if count > 0 then
 				desc = L["%d stored events over %.01f seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
-				if log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("bosskill", nil, true) then
+				if log.BOSS_KILL or (log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("Victory", nil, true)) then
 					desc = ("%s %s"):format(L["|cff20ff20Win!|r"], desc)
 				end
 			end
@@ -257,7 +257,7 @@ end
 
 function plugin:BigWigs_OnBossWin()
 	-- catch the end event
-	self:ScheduleTimer("Stop", 1)
+	self:ScheduleTimer("Stop", 3)
 end
 
 function plugin:Stop()
