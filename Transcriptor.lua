@@ -215,9 +215,6 @@ function plugin:OnPluginDisable()
 	timer = nil
 end
 
-if hash_SlashCmdList["/BWTS"] then -- Must be uppercase
-	hash_SlashCmdList["/BWTS"] = nil -- Remove previous slash handler, added by the TOC var X-BigWigs-LoadOn-Slash.
-end
 SLASH_BigWigs_Transcriptor1 = "/bwts"
 SlashCmdList.BigWigs_Transcriptor = function()
 	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "Big Wigs: Transcriptor")
