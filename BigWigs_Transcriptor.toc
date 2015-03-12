@@ -4,7 +4,7 @@
 ## Version: @project-version@
 ## Dependencies: BigWigs, Transcriptor
 ## LoadOnDemand: 1
-## X-BigWigs-LoadOn-CoreLoaded: 1
+## X-BigWigs-LoadOn-CoreEnabled: 1
 ## X-BigWigs-LoadOn-Slash: /bwts
 
 Locales.lua
