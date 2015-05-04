@@ -21,23 +21,24 @@ local function quartiles(t)
 		temp[i] = tonumber(t[i])
 	end
 	table.sort(temp)
+	local count = #temp
 
 	-- stupid small data sets
-	if #temp == 0 then
+	if count == 0 then
 		return 0, 0
-	elseif #temp == 1 then
+	elseif count == 1 then
 		return temp[1], temp[1]
-	elseif #temp == 2 then
+	elseif count == 2 then
 		return temp[1], temp[2]
 	end
 
 	local q1, q3
-	if #temp % 2 == 0 then
-		q1 = (temp[#temp/4] + temp[(#temp / 4) + 1]) / 2
-		q3 = (temp[math.floor(#temp * .75)] + temp[math.floor(#temp * .75) + 1]) / 2
+	if count % 2 == 0 then
+		q1 = (temp[math.ceil(count/4)] + temp[math.ceil(count / 4) + 1]) / 2
+		q3 = (temp[math.floor(count * .75)] + temp[math.floor(count * .75) + 1]) / 2
 	else
-		q1 = temp[math.ceil(#temp / 4)]
-		q3 = temp[math.ceil(#temp * .75)]
+		q1 = temp[math.ceil(count / 4)]
+		q3 = temp[math.ceil(count * .75)]
 	end
 	return q1, q3
 end
