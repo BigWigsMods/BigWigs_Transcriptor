@@ -191,7 +191,8 @@ local function GetOptions()
 									local upper = q3 + (1.5 * iqr)
 									local count, total, low, high = 0, 0, tonumber(values[1]), tonumber(values[1])
 									for i = 1, #values do
-										local v = tonumber(values[i])
+										values[i] = tonumber(values[i])
+										local v = values[i]
 										if lower <= v and v <= upper then
 											count = count + 1
 											total = total + v
