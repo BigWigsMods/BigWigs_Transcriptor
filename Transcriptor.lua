@@ -10,6 +10,9 @@ if not plugin then return end
 -- Locals
 --
 
+local sort, concat, split = table.sort, table.concat, string.split
+local tonumber, ceil, floor = tonumber, math.ceil, math.floor
+
 local events = nil
 local logging = nil
 local timer = nil
@@ -20,7 +23,7 @@ local function quartiles(t)
 	for i = 1, #t do
 		temp[i] = tonumber(t[i])
 	end
-	table.sort(temp)
+	sort(temp)
 	local count = #temp
 
 	-- stupid small data sets
@@ -33,17 +36,17 @@ local function quartiles(t)
 	end
 
 	local q1, q3
-	if count % 2 == 0 then
-		q1 = (temp[math.ceil(count/4)] + temp[math.ceil(count / 4) + 1]) / 2
-		q3 = (temp[math.floor(count * .75)] + temp[math.floor(count * .75) + 1]) / 2
+	if count % 2 == 0 then -- should i average or just use the inner indexes?
+		q1 = (temp[ceil(count / 4)] + temp[ceil(count / 4) + 1]) / 2
+		q3 = (temp[floor(count * .75)] + temp[floor(count * .75) + 1]) / 2
 	else
-		q1 = temp[math.ceil(count / 4)]
-		q3 = temp[math.ceil(count * .75)]
+		q1 = temp[ceil(count / 4)]
+		q3 = temp[ceil(count * .75)]
 	end
 	return q1, q3
 end
 
--- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory LibStub SLASH_BWTRANSCRIPTOR1 Transcriptor TranscriptDB
+-- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory LibStub SLASH_BigWigs_Transcriptor1 Transcriptor TranscriptDB
 -------------------------------------------------------------------------------
 -- Locale
 --
@@ -61,7 +64,7 @@ L["Show spell cast details"] = true
 L["Include some spell stats and the time between casts in the log tooltip when available."] = true
 L["Stored logs (%s) - Click to delete"] = true
 L["No logs recorded"] = true
-L["%d stored events over %.01f seconds."] = true
+L["%d stored events over %.01f seconds. %s"] = true
 L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
 
@@ -76,6 +79,9 @@ plugin.defaultDB = {
 	onpull = false,
 	details = false,
 }
+
+local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
+local sorted = {}
 
 local function GetOptions()
 	local logs = Transcriptor:GetAll()
@@ -170,26 +176,27 @@ local function GetOptions()
 			local desc = nil
 			local count = log.total and #log.total or 0
 			if count > 0 then
-				desc = L["%d stored events over %.01f seconds."]:format(count, log.total[count]:match("^<(.-)%s"))
-				if log.BOSS_KILL or (log.BigWigs_Message and log.BigWigs_Message[#log.BigWigs_Message]:find("Victory", nil, true)) then
-					desc = ("%s %s"):format(L["|cff20ff20Win!|r"], desc)
-				end
+				desc = L["%d stored events over %.01f seconds. %s"]:format(count, log.total[count]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
 				if plugin.db.profile.details and log.TIMERS then
-					desc = desc .. "\n"
-					for event, spells in next, log.TIMERS do
-						desc = desc .. "\n" .. event .. "\n"
-						for spell, times in next, spells do
-							-- if a spell exists in SPELL_CAST_START, don't show it's SPELL_CAST_SUCCESS data
-							if event == "SPELL_CAST_START" or not log.TIMERS.SPELL_CAST_START or not log.TIMERS.SPELL_CAST_START[spell] then
-								local values = {string.split(",", times)}
-								local _, pull = string.split(":", tremove(values, 1))
+					desc = ("%s\n"):format(desc)
+					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS"} do
+						local spells = log.TIMERS[event]
+						if spells then
+							desc = ("%s\n%s\n"):format(desc, event)
+							wipe(sorted)
+							for spell in next, spells do sorted[#sorted + 1] = spell end
+							sort(sorted, cmp)
+							for _, spell in ipairs(sorted) do
+								local spellId, spellName = split("-", spell, 2)
+								local values = {split(",", spells[spell])}
+								local _, pull = split(":", tremove(values, 1))
 								-- use the lower and upper quartiles to find outliers
 								local q1, q3 = quartiles(values)
-								if q3 > 5 then -- ignore spells with a cd of less than 6s
+								if q3 > 4 then -- ignore spells with a cd of less than 5s
 									local iqr = q3 - q1
 									local lower = q1 - (1.5 * iqr)
 									local upper = q3 + (1.5 * iqr)
-									local count, total, low, high = 0, 0, tonumber(values[1]), tonumber(values[1])
+									local count, total, low, high = 0, 0, math.huge, 0
 									for i = 1, #values do
 										values[i] = tonumber(values[i])
 										local v = values[i]
@@ -202,8 +209,10 @@ local function GetOptions()
 											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
 										end
 									end
-									local spellId, spellName = string.split("-", spell, 2)
-									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r|r\n    %s\n"):format(spellName, spellId, #values + 1, total / count, low, high, pull, table.concat(values, ", "))
+									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
+									desc = desc .. line
+								elseif #values == 0 then
+									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(spellName, spellId, 1, pull)
 									desc = desc .. line
 								end
 							end
@@ -217,6 +226,7 @@ local function GetOptions()
 				desc = desc,
 				width = "full",
 				arg = key,
+				disabled = InCombatLockdown,
 			}
 		end
 	end
@@ -241,6 +251,10 @@ plugin.subPanelOptions = {
 -------------------------------------------------------------------------------
 -- Initialization
 --
+
+local function Refresh()
+	LibStub("AceConfigRegistry-3.0"):NotifyChange("BigWigs")
+end
 
 function plugin:BigWigs_ProfileUpdate()
 	self:Disable()
@@ -281,6 +295,8 @@ function plugin:OnPluginEnable()
 		self:RegisterMessage("BigWigs_OnBossWin")
 		self:RegisterMessage("BigWigs_OnBossWipe", "BigWigs_OnBossWin")
 	end
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", Refresh)
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
 end
 
 function plugin:OnPluginDisable()
