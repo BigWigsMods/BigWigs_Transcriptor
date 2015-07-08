@@ -67,6 +67,7 @@ L["No logs recorded"] = true
 L["%d stored events over %.01f seconds. %s"] = true
 L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
+L["Clear All"] = true
 
 L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
 
@@ -144,10 +145,7 @@ local function GetOptions()
 				inline = true,
 				name = L["Stored logs (%s) - Click to delete"]:format(mem),
 				func = function(info)
-					local key = info.arg
-					if key then
-						logs[key] = nil
-					end
+					Transcriptor:Clear(info.arg)
 					GameTooltip:Hide()
 					collectgarbage()
 				end,
@@ -174,7 +172,7 @@ local function GetOptions()
 	for key, log in next, logs do
 		if key ~= "ignoredEvents" then
 			local desc = nil
-			local count = log.total and #log.total or 0
+			local count = #log.total
 			if count > 0 then
 				desc = L["%d stored events over %.01f seconds. %s"]:format(count, log.total[count]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
 				if plugin.db.profile.details and log.TIMERS then
@@ -208,6 +206,9 @@ local function GetOptions()
 										else
 											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
 										end
+										if i % 20 == 0 then -- simple wrapping
+												values[i] = ("\n    %s"):format(values[i])
+										end
 									end
 									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
 									desc = desc .. line
@@ -237,6 +238,19 @@ local function GetOptions()
 			fontSize = "medium",
 			width = "full",
 		}
+	else
+		options.args.logs.args["clear_all"] = {
+				type = "execute",
+				name = L["Clear All"],
+				width = "full",
+				func = function()
+					Transcriptor:ClearAll()
+					GameTooltip:Hide()
+					collectgarbage()
+				end,
+				disabled = InCombatLockdown,
+				order = 0,
+			}
 	end
 
 	return options
@@ -292,8 +306,8 @@ function plugin:OnPluginEnable()
 			self:RegisterMessage("BigWigs_StopPull")
 		end
 		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
-		self:RegisterMessage("BigWigs_OnBossWin")
-		self:RegisterMessage("BigWigs_OnBossWipe", "BigWigs_OnBossWin")
+		self:RegisterMessage("BigWigs_OnBossWin") -- delayed Stop
+		self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
 	end
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", Refresh)
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
@@ -348,8 +362,8 @@ function plugin:Start()
 end
 
 function plugin:BigWigs_OnBossWin()
-	-- catch the end event
-	self:ScheduleTimer("Stop", 3)
+	-- catch the end events
+	self:ScheduleTimer("Stop", 5)
 end
 
 function plugin:Stop()
