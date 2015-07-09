@@ -365,13 +365,9 @@ function plugin:Start()
 		timer = nil
 	end
 	-- stop your current log and start a new one
-	if Transcriptor:IsLogging() and not logging then
-		Transcriptor:StopLog(true)
-	end
-	if not Transcriptor:IsLogging() then
-		Transcriptor:StartLog()
-		logging = true
-	end
+	self:Stop(true)
+	Transcriptor:StartLog()
+	logging = true
 end
 
 function plugin:BigWigs_OnBossWin()
@@ -379,7 +375,7 @@ function plugin:BigWigs_OnBossWin()
 	self:ScheduleTimer("Stop", 5)
 end
 
-function plugin:Stop()
+function plugin:Stop(silent)
 	logging = nil
 	if Transcriptor:IsLogging() then
 		local logName = Transcriptor:StopLog()
@@ -391,11 +387,13 @@ function plugin:Stop()
 			end
 		end
 
-		-- check memory
-		UpdateAddOnMemoryUsage()
-		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-		if mem > 60 then
-			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
+		if not silent then
+			-- check memory
+			UpdateAddOnMemoryUsage()
+			local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+			if mem > 60 then
+				print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
+			end
 		end
 	end
 end
