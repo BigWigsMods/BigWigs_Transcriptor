@@ -1,4 +1,6 @@
 
+local _, scope = ...
+
 -------------------------------------------------------------------------------
 -- Module Declaration
 --
@@ -57,11 +59,14 @@ L["Automatically start Transcriptor logging when you pull a boss and stop when y
 
 L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."] = true
 L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."] = true
+L["Log deleted."] = true
 
 L["Start with pull timer"] = true
 L["Start Transcriptor logging from a pull timer at two seconds remaining."] = true
 L["Show spell cast details"] = true
 L["Include some spell stats and the time between casts in the log tooltip when available."] = true
+L["Delete short logs"] = true
+L["Automatically delete logs shorter than 30 seconds."] = true
 L["Stored logs (%s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds. %s"] = true
@@ -79,6 +84,7 @@ plugin.defaultDB = {
 	enabled = false,
 	onpull = false,
 	details = false,
+	delete = false,
 }
 
 local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
@@ -132,13 +138,21 @@ local function GetOptions()
 				end,
 				order = 3,
 			},
+			delete = {
+				type = "toggle",
+				name = L["Delete short logs"],
+				desc = L["Automatically delete logs shorter than 30 seconds."],
+				get = function(info) return plugin.db.profile.delete end,
+				set = function(info, value) plugin.db.profile.delete = value end,
+				order = 4,
+			},
 			details = {
 				type = "toggle",
 				name = L["Show spell cast details"],
 				desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
 				get = function(info) return plugin.db.profile.details end,
 				set = function(info, value) plugin.db.profile.details = value end,
-				order = 4,
+				order = 5,
 			},
 			logs = {
 				type = "group",
@@ -314,10 +328,9 @@ function plugin:OnPluginEnable()
 end
 
 function plugin:OnPluginDisable()
-	if logging and Transcriptor:IsLogging() then
-		Transcriptor:StopLog()
+	if logging then
+		self:Stop()
 	end
-	logging = nil
 	timer = nil
 end
 
@@ -369,7 +382,14 @@ end
 function plugin:Stop()
 	logging = nil
 	if Transcriptor:IsLogging() then
-		Transcriptor:StopLog()
+		local logName = Transcriptor:StopLog()
+		if self.db.profile.delete and logName then
+			local log = Transcriptor:Get(logName)
+			if #log.total == 0 or tonumber(log.total[#log.total]:match("^<(.-)%s")) < 30 then
+				Transcriptor:Clear(logName)
+				print("|cffff2020" .. L["Log deleted."])
+			end
+		end
 
 		-- check memory
 		UpdateAddOnMemoryUsage()
