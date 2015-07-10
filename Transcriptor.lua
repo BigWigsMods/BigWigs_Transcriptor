@@ -12,8 +12,10 @@ if not plugin then return end
 -- Locals
 --
 
-local sort, concat, split = table.sort, table.concat, string.split
+local ipairs, next, print, split = ipairs, next, print, string.split
+local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
+local huge = math.huge
 
 local events = nil
 local logging = nil
@@ -49,6 +51,7 @@ local function quartiles(t)
 end
 
 -- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory LibStub SLASH_BigWigs_Transcriptor1 Transcriptor TranscriptDB
+-- GLOBALS: UpdateAddOnMemoryUsage GetAddOnMemoryUsage InCombatLockdown collectgarbage
 -------------------------------------------------------------------------------
 -- Locale
 --
@@ -208,7 +211,7 @@ local function GetOptions()
 									local iqr = q3 - q1
 									local lower = q1 - (1.5 * iqr)
 									local upper = q3 + (1.5 * iqr)
-									local count, total, low, high = 0, 0, math.huge, 0
+									local count, total, low, high = 0, 0, huge, 0
 									for i = 1, #values do
 										values[i] = tonumber(values[i])
 										local v = values[i]
@@ -365,9 +368,13 @@ function plugin:Start()
 		timer = nil
 	end
 	-- stop your current log and start a new one
-	self:Stop(true)
-	Transcriptor:StartLog()
-	logging = true
+	if Transcriptor:IsLogging() and not logging then
+		self:Stop(true)
+	end
+	if not Transcriptor:IsLogging() then
+		Transcriptor:StartLog()
+		logging = true
+	end
 end
 
 function plugin:BigWigs_OnBossWin()
