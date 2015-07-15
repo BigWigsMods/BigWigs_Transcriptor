@@ -285,7 +285,7 @@ plugin.subPanelOptions = {
 
 local function Refresh()
 	local ACR = LibStub("AceConfigRegistry-3.0", true)
-	if ACR then
+	if ACR then -- make sure it's loaded (provided by BigWigs_Options)
 		ACR:NotifyChange("BigWigs")
 	end
 end
