@@ -205,9 +205,11 @@ local function GetOptions()
 								local spellId, spellName = split("-", spell, 2)
 								local values = {split(",", spells[spell])}
 								local _, pull = split(":", tremove(values, 1))
-								-- use the lower and upper quartiles to find outliers
-								local q1, q3 = quartiles(values)
-								if q3 > 4 then -- ignore spells with a cd of less than 5s
+								if #values == 0 then
+									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
+								else
+									-- use the lower and upper quartiles to find outliers
+									local q1, q3 = quartiles(values)
 									local iqr = q3 - q1
 									local lower = q1 - (1.5 * iqr)
 									local upper = q3 + (1.5 * iqr)
@@ -223,15 +225,15 @@ local function GetOptions()
 										else
 											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
 										end
-										if i % 20 == 0 then -- simple wrapping
+										if i % 24 == 0 then -- simple wrapping
 												values[i] = ("\n    %s"):format(values[i])
 										end
 									end
-									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
-									desc = desc .. line
-								elseif #values == 0 then
-									local line = ("|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(spellName, spellId, 1, pull)
-									desc = desc .. line
+									if low == high then
+										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
+									else
+										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
+									end
 								end
 							end
 						end
