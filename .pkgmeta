@@ -1,0 +1,5 @@
+package-as: BigWigs_Transcriptor
+
+ignore:
+  - .travis.yml
+  - README.md
