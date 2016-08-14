@@ -1,11 +1,15 @@
 ## Interface: 70000
 ## Title: BigWigs |cffff0000+|r|cffffffffTranscriptor|r
+## Notes: Simple addon that uses BigWigs for pull/win/wipe detection and starts or stops Transcriptor logging accordingly.
 ## Author: Neb
 ## Version: @project-version@
 ## Dependencies: BigWigs, Transcriptor
 ## LoadOnDemand: 1
+## X-License: All Rights Reserved: You are free to fork and modify on GitHub, please ask us about anything else.
+## X-Category: Development Tools
 ## X-BigWigs-LoadOn-CoreEnabled: 1
 ## X-BigWigs-LoadOn-Slash: /bwts
+## X-Curse-Project-ID: bigwigs_transcriptor
 
 Locales.lua
 Transcriptor.lua
