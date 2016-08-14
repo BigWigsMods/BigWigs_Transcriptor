@@ -192,7 +192,7 @@ local function GetOptions()
 				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, log.total[numEvents]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
 				if plugin.db.profile.details and log.TIMERS then
 					desc = ("%s\n"):format(desc)
-					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS"} do
+					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
 						local spells = log.TIMERS[event]
 						if spells then
 							desc = ("%s\n%s\n"):format(desc, event)
