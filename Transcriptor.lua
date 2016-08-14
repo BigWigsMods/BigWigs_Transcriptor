@@ -54,7 +54,7 @@ end
 -- Locale
 --
 
-local L = LibStub("AceLocale-3.0"):NewLocale("Big Wigs: Transcriptor", "enUS", true)
+local L = LibStub("AceLocale-3.0"):NewLocale("BigWigs: Transcriptor", "enUS", true)
 L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
@@ -75,7 +75,7 @@ L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
 L["Clear All"] = true
 
-L = LibStub("AceLocale-3.0"):GetLocale("Big Wigs: Transcriptor")
+L = LibStub("AceLocale-3.0"):GetLocale("BigWigs: Transcriptor")
 
 -------------------------------------------------------------------------------
 -- Options
@@ -272,7 +272,7 @@ local function GetOptions()
 end
 
 plugin.subPanelOptions = {
-	key = "Big Wigs: Transcriptor",
+	key = "BigWigs: Transcriptor",
 	name = L["Transcriptor"],
 	options = GetOptions,
 }
@@ -340,7 +340,7 @@ end
 
 SLASH_BigWigs_Transcriptor1 = "/bwts"
 SlashCmdList.BigWigs_Transcriptor = function()
-	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "Big Wigs: Transcriptor")
+	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
 end
 
 -------------------------------------------------------------------------------
