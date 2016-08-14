@@ -1,6 +1,4 @@
 
-local _, scope = ...
-
 -------------------------------------------------------------------------------
 -- Module Declaration
 --
@@ -12,10 +10,10 @@ if not plugin then return end
 -- Locals
 --
 
+-- luacheck: globals Transcriptor TranscriptDB
 local ipairs, next, print, split = ipairs, next, print, string.split
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
-local huge = math.huge
 
 local events = nil
 local logging = nil
@@ -32,11 +30,13 @@ local function quartiles(t)
 
 	-- stupid small data sets
 	if count == 0 then
-		return 0, 0
+		return 0, 0, 0, 0
 	elseif count == 1 then
-		return temp[1], temp[1]
+		local a = temp[1]
+		return a, a, a, a
 	elseif count == 2 then
-		return temp[1], temp[2]
+		local a, b = temp[1], temp[2]
+		return a, b, a, b
 	end
 
 	local q1, q3
@@ -47,11 +47,9 @@ local function quartiles(t)
 		q1 = temp[ceil(count / 4)]
 		q3 = temp[ceil(count * .75)]
 	end
-	return q1, q3
+	return q1, q3, temp[1], temp[count] -- return the min/max since it's sorted
 end
 
--- GLOBALS: ENABLE GameTooltip InterfaceOptionsFrame_OpenToCategory LibStub SLASH_BigWigs_Transcriptor1 Transcriptor TranscriptDB
--- GLOBALS: UpdateAddOnMemoryUsage GetAddOnMemoryUsage InCombatLockdown collectgarbage
 -------------------------------------------------------------------------------
 -- Locale
 --
@@ -175,7 +173,7 @@ local function GetOptions()
 				name = L["Ignored Events"],
 				get = function(info, key) return TranscriptDB.ignoredEvents[key] end,
 				set = function(info, key, value)
-					local value = value or nil
+					value = value or nil
 					TranscriptDB.ignoredEvents[key] = value
 					plugin.db.global.ignoredEvents[key] = value
 				end,
@@ -189,9 +187,9 @@ local function GetOptions()
 	for key, log in next, logs do
 		if key ~= "ignoredEvents" then
 			local desc = nil
-			local count = #log.total
-			if count > 0 then
-				desc = L["%d stored events over %.01f seconds. %s"]:format(count, log.total[count]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
+			local numEvents = #log.total
+			if numEvents > 0 then
+				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, log.total[numEvents]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
 				if plugin.db.profile.details and log.TIMERS then
 					desc = ("%s\n"):format(desc)
 					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS"} do
@@ -209,29 +207,27 @@ local function GetOptions()
 									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
 								else
 									-- use the lower and upper quartiles to find outliers
-									local q1, q3 = quartiles(values)
-									local iqr = q3 - q1
-									local lower = q1 - (1.5 * iqr)
-									local upper = q3 + (1.5 * iqr)
-									local count, total, low, high = 0, 0, huge, 0
-									for i = 1, #values do
-										values[i] = tonumber(values[i])
-										local v = values[i]
-										if lower <= v and v <= upper then
-											count = count + 1
-											total = total + v
-											if v < low then low = v end
-											if v > high then high = v end
-										else
-											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
-										end
-										if i % 24 == 0 then -- simple wrapping
-												values[i] = ("\n    %s"):format(values[i])
-										end
-									end
+									local q1, q3, low, high = quartiles(values)
 									if low == high then
 										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
 									else
+										local iqr = q3 - q1
+										local lower = q1 - (1.5 * iqr)
+										local upper = q3 + (1.5 * iqr)
+										local count, total = 0, 0
+										for i = 1, #values do
+											values[i] = tonumber(values[i])
+											local v = values[i]
+											if lower <= v and v <= upper then
+												count = count + 1
+												total = total + v
+											else
+												values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
+											end
+											if i % 24 == 0 then -- simple wrapping
+												values[i] = ("\n    %s"):format(values[i])
+											end
+										end
 										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
 									end
 								end
@@ -409,4 +405,3 @@ function plugin:Stop(silent)
 		end
 	end
 end
-
