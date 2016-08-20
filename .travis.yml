@@ -7,15 +7,10 @@ addons:
     packages:
     - luarocks
 
-env:
-  global:
-  - secure: "ntT2gaSMCzEeJxU8LbHooREFXgcvC4rFoJEjbqClr1xrjxyAwyy1f0kbaULxGTOHVGbt60Zkg3calnLIwZAB8hk1X24hhLxjgEMBMT1mibpG994/dq8d4BAFA3D4Gw3I231GSM0MBJOMjNyCLg9ZPUhgxuaLhpwjEMpwAjyqx2ETggQjQ/xhB2vpS5lUDmldWX8jB8YZ4VsUEfanlTwl7yNiurfDphWZN4xyaOtBxw0Gks0qqIN1oU/h+IOgkU+/FPoNieXB8l8q1JAbXZl8ML3KHcBAg1vUdtBVmyAkvwuJ7blk8/PYQhbiSpl0EV4/gMatykJVUCU6W1J5UISSLfZpj0l8kWojEmDApp/GDRfLFuReAwkpSJS4YfHMIovm1uoLbknqnDrF2oAlcAcroUNMdJLjrGnB5ssAa+Aocd4hrmZ8kM3D1tAIbTZckUE0EHZ+jX0cZ2R4IZP/FNGo+jxDHmWGuG7k6FhdCW8Gotfa7x0FsHYC6rERR/hMZA3Dmwv5diZK8tyLpduN75y6kMMzm1hIgMEZLoVw8MA+lMxWQLQSadsxe0B85KxfO78nffAgaDNgtNWpDNQRjn3n8Dfu7zjTpcFwulIN/t/YaofTaCxgYdQ01YM3bLCKEYuNDI3PzY2Xwegn5dI7TJTKEFOxrB/XiijbgF4n/1t22b0="
-  - secure: "naIfEfVmP2WceVY7y5yPM/5gHuM8LwusNox+7y4pF41uXVbin+G19Uson1CK2sm1KW5XDWdWyd+7qGMx5/0qTPMmHczZ52l0yY+N4z1/b7YxAB1TSIjkCfRANZjudKEI3IPVw5l11FCSu9vhBmmU3/wv0zyISyfj8UEjSIfq2EIPs13gd/+uyvKrl0aAJBvkO4ycKC25ODEf2B2zaNbJh/1w0JhXZBm9Sx/dOZ9ST5413bUt4OYXCJTZdAbKqEr9VDo5tyRatLbAmJTDtR7xvQa5Y/skreywddvwMxvmdI+gOUbXUUFJlOhvq7n+eunROpSnAHle1QtbrHpVkKzf0VT+oEWDSEgeWt+GSnit7hnzcyHpOHjVtLRIeNCGRJY3sTpq12ErF7zbUdnaxoLl4/oBSIv7Pt55b44dDvDt906QORH7j4/TGXZqIYtAjIudJNv+YcIoX6uMu0tmvVqpFuLzZsk7HzBc2Ar904s9Fci1KokfZOVd8weQtBwXxzYD3rE1sOml/0MeRxsTtfLfMcYBJcGu6u5Vo+ClEBW0W3eoU0fh2cVqTpCqhyu0f/VeX7Hi+ulTEUXQef6w2kbKXq/HuhB45FDJ//E5qwYCwndv1IWZniZGyeofRpPsGKeOHT4cf3tiZ8mNHpTHm/x0M/UVrekCBG+H/5Zjrwuy9bI="
-
 before_install: luarocks install --local luacheck
 
 before_script: /home/travis/.luarocks/bin/luacheck . --no-color -qo "011"
-script: curl -s https://raw.githubusercontent.com/BigWigsMods/packager/master/release.sh | bash
+script: curl -s https://raw.githubusercontent.com/BigWigsMods/packager/testing/release.sh | bash
 
 notifications:
   email:
