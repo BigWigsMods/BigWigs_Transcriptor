@@ -189,7 +189,16 @@ local function GetOptions()
 			local desc = nil
 			local numEvents = #log.total
 			if numEvents > 0 then
-				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, log.total[numEvents]:match("^<(.-)%s"), log.BOSS_KILL and L["|cff20ff20Win!|r"] or "")
+				local result = ""
+				if log.COMBAT then
+					for _, line in next, log.COMBAT do
+						if line:find("BOSS_KILL", nil, true) then
+							result = L["|cff20ff20Win!|r"]
+							break
+						end
+					end
+				end
+				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, log.total[numEvents]:match("^<(.-)%s"), result)
 				if plugin.db.profile.details and log.TIMERS then
 					desc = ("%s\n"):format(desc)
 					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
