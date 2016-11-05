@@ -333,9 +333,12 @@ function plugin:OnPluginEnable()
 			self:RegisterMessage("BigWigs_StartPull")
 			self:RegisterMessage("BigWigs_StopPull")
 		end
-		self:RegisterMessage("BigWigs_OnBossEngage", "Start")
-		self:RegisterMessage("BigWigs_OnBossWin") -- delayed Stop
-		self:RegisterMessage("BigWigs_OnBossWipe", "Stop")
+		self:RegisterEvent("ENCOUNTER_START")
+		self:RegisterEvent("ENCOUNTER_STOP")
+		-- catch fights that have a module but don't use ENCOUNTER events
+		self:RegisterMessage("BigWigs_OnBossEngage")
+		self:RegisterMessage("BigWigs_OnBossWin")
+		self:RegisterMessage("BigWigs_OnBossWipe")
 	end
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", Refresh)
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
@@ -373,6 +376,33 @@ function plugin:BigWigs_StopPull()
 	end
 end
 
+function plugin:BigWigs_OnBossEngage(_, module, diff)
+	if not module.engageId then
+		self:Start()
+	end
+end
+
+function plugin:BigWigs_OnBossWin(_, module)
+	if not module.engageId then
+		self:ScheduleTimer("Stop", 5) -- catch the end events
+	end
+end
+
+function plugin:BigWigs_OnBossWipe(_, module)
+	if not module.engageId then
+		self:Stop()
+	end
+end
+
+function pluging:ENCOUNTER_START(_, id, name, diff, size)
+	-- XXX this will start logging dungeons and shit for people without little wigs
+	self:Start()
+end
+
+function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
+	self:ScheduleTimer("Stop", 5) -- catch the end events
+end
+
 function plugin:Start()
 	if timer then
 		self:CancelTimer(timer)
@@ -386,11 +416,6 @@ function plugin:Start()
 		Transcriptor:StartLog()
 		logging = true
 	end
-end
-
-function plugin:BigWigs_OnBossWin()
-	-- catch the end events
-	self:ScheduleTimer("Stop", 5)
 end
 
 function plugin:Stop(silent)
