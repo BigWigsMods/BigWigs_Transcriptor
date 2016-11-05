@@ -1,3 +1,4 @@
+local _, ns = ...
 
 -------------------------------------------------------------------------------
 -- Module Declaration
@@ -54,7 +55,7 @@ end
 -- Locale
 --
 
-local L = LibStub("AceLocale-3.0"):NewLocale("BigWigs: Transcriptor", "enUS", true)
+local L = setmetatable({}, { __newindex = function(t, k, v) rawset(t, k, v == true and k or v) end })
 L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
@@ -75,7 +76,7 @@ L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
 L["Clear All"] = true
 
-L = LibStub("AceLocale-3.0"):GetLocale("BigWigs: Transcriptor")
+ns.L = L
 
 -------------------------------------------------------------------------------
 -- Options

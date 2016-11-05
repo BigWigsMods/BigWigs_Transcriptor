@@ -11,5 +11,5 @@
 ## X-BigWigs-LoadOn-Slash: /bwts
 ## X-Curse-Project-ID: bigwigs_transcriptor
 
-Locales.lua
 Transcriptor.lua
+Locales.lua
