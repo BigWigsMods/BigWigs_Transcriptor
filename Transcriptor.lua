@@ -394,7 +394,7 @@ function plugin:BigWigs_OnBossWipe(_, module)
 	end
 end
 
-function pluging:ENCOUNTER_START(_, id, name, diff, size)
+function plugin:ENCOUNTER_START(_, id, name, diff, size)
 	-- XXX this will start logging dungeons and shit for people without little wigs
 	self:Start()
 end
