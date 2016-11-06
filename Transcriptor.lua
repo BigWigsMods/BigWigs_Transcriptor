@@ -334,7 +334,7 @@ function plugin:OnPluginEnable()
 			self:RegisterMessage("BigWigs_StopPull")
 		end
 		self:RegisterEvent("ENCOUNTER_START")
-		self:RegisterEvent("ENCOUNTER_STOP")
+		self:RegisterEvent("ENCOUNTER_END")
 		-- catch fights that have a module but don't use ENCOUNTER events
 		self:RegisterMessage("BigWigs_OnBossEngage")
 		self:RegisterMessage("BigWigs_OnBossWin")
