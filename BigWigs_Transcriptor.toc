@@ -9,7 +9,7 @@
 ## X-Category: Development Tools
 ## X-BigWigs-LoadOn-CoreEnabled: 1
 ## X-BigWigs-LoadOn-Slash: /bwts
-## X-Curse-Project-ID: bigwigs_transcriptor
+## X-Curse-Project-ID: 53389
 
 Transcriptor.lua
 Locales.lua
