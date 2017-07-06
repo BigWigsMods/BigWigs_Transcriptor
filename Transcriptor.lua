@@ -51,11 +51,34 @@ local function quartiles(t)
 	return q1, q3, temp[1], temp[count] -- return the min/max since it's sorted
 end
 
+local function isWin(log)
+	local killed = nil
+	if log.COMBAT then
+		for _, line in next, log.COMBAT do
+			if line:find("BOSS_KILL", nil, true) then
+				killed = true
+			end
+		end
+	end
+	local duration = log.total and tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
+	return killed, duration
+end
+
+local function parseLogName(logName)
+	-- logNameFormat = "[date("%Y-%m-%d")]@[date("%H:%M:%S")] - %d/%d/%s/%s/%s@%s (version) (wowVersion.buildRevision)"
+	local year, month, day, hour, min, sec, info = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- (.+@[^ ]+)")
+	local timestamp = time({day=day,month=month,year=year,hour=hour,min=min,sec=sec})
+
+	return info, timestamp
+end
+
 -------------------------------------------------------------------------------
 -- Locale
 --
 
 local L = setmetatable({}, { __newindex = function(t, k, v) rawset(t, k, v == true and k or v) end })
+ns.L = L
+
 L["Transcriptor"] = true
 L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."] = true
 
@@ -69,14 +92,14 @@ L["Show spell cast details"] = true
 L["Include some spell stats and the time between casts in the log tooltip when available."] = true
 L["Delete short logs"] = true
 L["Automatically delete logs shorter than 30 seconds."] = true
+L["Keep one log per fight"] = true
+L["Only keep a log for the longest attempt or latest kill of an encounter."] = true
 L["Stored logs (%s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds. %s"] = true
 L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
 L["Clear All"] = true
-
-ns.L = L
 
 -------------------------------------------------------------------------------
 -- Options
@@ -87,6 +110,7 @@ plugin.defaultDB = {
 	onpull = false,
 	details = false,
 	delete = false,
+	keepone = false,
 }
 
 local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
@@ -105,6 +129,13 @@ local function GetOptions()
 	UpdateAddOnMemoryUsage()
 	local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
 	mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
+
+	local function get(info)
+		return plugin.db.profile[info[#info]]
+	end
+	local function set(info, value)
+		plugin.db.profile[info[#info]] = value
+	end
 
 	local options = {
 		name = L["Transcriptor"],
@@ -144,17 +175,25 @@ local function GetOptions()
 				type = "toggle",
 				name = L["Delete short logs"],
 				desc = L["Automatically delete logs shorter than 30 seconds."],
-				get = function(info) return plugin.db.profile.delete end,
-				set = function(info, value) plugin.db.profile.delete = value end,
+				get = get,
+				set = set,
 				order = 4,
+			},
+			keepone = {
+				type = "toggle",
+				name = L["Keep one log per fight"],
+				desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
+				get = get,
+				set = set,
+				order = 5,
 			},
 			details = {
 				type = "toggle",
 				name = L["Show spell cast details"],
 				desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
-				get = function(info) return plugin.db.profile.details end,
-				set = function(info, value) plugin.db.profile.details = value end,
-				order = 5,
+				get = get,
+				set = set,
+				order = 6,
 			},
 			logs = {
 				type = "group",
@@ -190,16 +229,9 @@ local function GetOptions()
 			local desc = nil
 			local numEvents = #log.total
 			if numEvents > 0 then
-				local result = ""
-				if log.COMBAT then
-					for _, line in next, log.COMBAT do
-						if line:find("BOSS_KILL", nil, true) then
-							result = L["|cff20ff20Win!|r"]
-							break
-						end
-					end
-				end
-				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, log.total[numEvents]:match("^<(.-)%s"), result)
+				local killed, duration = isWin(log)
+				local result = killed and L["|cff20ff20Win!|r"] or ""
+				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
 				if plugin.db.profile.details and log.TIMERS then
 					desc = ("%s\n"):format(desc)
 					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
@@ -422,11 +454,52 @@ function plugin:Stop(silent)
 	logging = nil
 	if Transcriptor:IsLogging() then
 		local logName = Transcriptor:StopLog()
+
 		if self.db.profile.delete and logName then
 			local log = Transcriptor:Get(logName)
 			if #log.total == 0 or tonumber(log.total[#log.total]:match("^<(.-)%s")) < 30 then
 				Transcriptor:Clear(logName)
 				print("|cffff2020" .. L["Log deleted."])
+				logName = nil
+			end
+		end
+
+		if self.db.profile.keepone and logName then
+			local log = Transcriptor:Get(logName)
+			local encounter = parseLogName(logName)
+			if isWin(log) then
+				-- delete previous logs
+				for name, log in next, Transcriptor:GetAll() do
+					if name ~= logName and name:find(encounter, nil, true) then
+						Transcriptor:Clear(logName)
+					end
+				end
+			else
+				-- keep the longest attempt or last kill
+				local encounterLogs = {}
+				local lastWin, lastWinTime = nil, nil
+				local longLog, longLogTime = nil, nil
+				for name, log in next, Transcriptor:GetAll() do
+					local e, t = parseLogName(name)
+					if e == encounter then
+						encounterLogs[name] = true
+						local k, d = isWin(log)
+						if k and (not lastWin or t > lastWinTime) then
+							lastWin = name
+							lastWinTime = t
+						end
+						if not longLog or d > longLogTime then
+							longLog = name
+							longLogTime = d
+						end
+					end
+				end
+				local winner = lastWin or longLog
+				for name in next, encounterLogs do
+					if name ~= winner then
+						Transcriptor:Clear(name)
+					end
+				end
 			end
 		end
 
