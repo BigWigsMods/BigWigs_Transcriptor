@@ -19,5 +19,5 @@ script: curl -s https://raw.githubusercontent.com/BigWigsMods/packager/master/re
 
 notifications:
   email:
-    on_success: never
+    on_success: change
     on_failure: always

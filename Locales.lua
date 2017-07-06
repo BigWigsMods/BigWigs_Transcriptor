@@ -1,4 +1,4 @@
--- update at http://www.wowace.com/addons/bigwigs_transcriptor/localization/
+-- Update at https://wow.curseforge.com/projects/bigwigs_transcriptor/localization
 
 local _, ns = ...
 local L = ns.L
