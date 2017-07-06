@@ -67,6 +67,7 @@ end
 local function parseLogName(logName)
 	-- logNameFormat = "[date("%Y-%m-%d")]@[date("%H:%M:%S")] - %d/%d/%s/%s/%s@%s (version) (wowVersion.buildRevision)"
 	local year, month, day, hour, min, sec, info = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- (.+@[^ ]+)")
+	if not info then return	end
 	local timestamp = time({day=day,month=month,year=year,hour=hour,min=min,sec=sec})
 
 	return info, timestamp
