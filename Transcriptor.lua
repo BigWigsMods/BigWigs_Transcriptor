@@ -212,11 +212,9 @@ local function GetOptions()
 			ignoredEvents = {
 				type = "multiselect",
 				name = L["Ignored Events"],
-				get = function(info, key) return TranscriptDB.ignoredEvents[key] end,
+				get = function(info, key) return TranscriptIgnore[key] end,
 				set = function(info, key, value)
-					value = value or nil
-					TranscriptDB.ignoredEvents[key] = value
-					plugin.db.global.ignoredEvents[key] = value
+					TranscriptIgnore[key] = value or nil
 				end,
 				values = events,
 				order = 20,
@@ -226,68 +224,66 @@ local function GetOptions()
 	}
 
 	for key, log in next, logs do
-		if key ~= "ignoredEvents" then
-			local desc = nil
-			local numEvents = #log.total
-			if numEvents > 0 then
-				local killed, duration = isWin(log)
-				local result = killed and L["|cff20ff20Win!|r"] or ""
-				desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
-				if plugin.db.profile.details and log.TIMERS then
-					desc = ("%s\n"):format(desc)
-					for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
-						local spells = log.TIMERS[event]
-						if spells then
-							desc = ("%s\n%s\n"):format(desc, event)
-							wipe(sorted)
-							for spell in next, spells do sorted[#sorted + 1] = spell end
-							sort(sorted, cmp)
-							for _, spell in ipairs(sorted) do
-								local spellId, spellName = split("-", spell, 2)
-								local values = {split(",", spells[spell])}
-								local _, pull = split(":", tremove(values, 1))
-								if #values == 0 then
-									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
+		local desc = nil
+		local numEvents = #log.total
+		if numEvents > 0 then
+			local killed, duration = isWin(log)
+			local result = killed and L["|cff20ff20Win!|r"] or ""
+			desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
+			if plugin.db.profile.details and log.TIMERS then
+				desc = ("%s\n"):format(desc)
+				for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
+					local spells = log.TIMERS[event]
+					if spells then
+						desc = ("%s\n%s\n"):format(desc, event)
+						wipe(sorted)
+						for spell in next, spells do sorted[#sorted + 1] = spell end
+						sort(sorted, cmp)
+						for _, spell in ipairs(sorted) do
+							local spellId, spellName = split("-", spell, 2)
+							local values = {split(",", spells[spell])}
+							local _, pull = split(":", tremove(values, 1))
+							if #values == 0 then
+								desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
+							else
+								-- use the lower and upper quartiles to find outliers
+								local q1, q3, low, high = quartiles(values)
+								if low == high then
+									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
 								else
-									-- use the lower and upper quartiles to find outliers
-									local q1, q3, low, high = quartiles(values)
-									if low == high then
-										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
-									else
-										local iqr = q3 - q1
-										local lower = q1 - (1.5 * iqr)
-										local upper = q3 + (1.5 * iqr)
-										local count, total = 0, 0
-										for i = 1, #values do
-											values[i] = tonumber(values[i])
-											local v = values[i]
-											if lower <= v and v <= upper then
-												count = count + 1
-												total = total + v
-											else
-												values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
-											end
-											if i % 24 == 0 then -- simple wrapping
-												values[i] = ("\n    %s"):format(values[i])
-											end
+									local iqr = q3 - q1
+									local lower = q1 - (1.5 * iqr)
+									local upper = q3 + (1.5 * iqr)
+									local count, total = 0, 0
+									for i = 1, #values do
+										values[i] = tonumber(values[i])
+										local v = values[i]
+										if lower <= v and v <= upper then
+											count = count + 1
+											total = total + v
+										else
+											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
 										end
-										desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
+										if i % 24 == 0 then -- simple wrapping
+											values[i] = ("\n    %s"):format(values[i])
+										end
 									end
+									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
 								end
 							end
 						end
 					end
 				end
 			end
-			options.args.logs.args[key] = {
-				type = "execute",
-				name = key,
-				desc = desc,
-				width = "full",
-				arg = key,
-				disabled = InCombatLockdown,
-			}
 		end
+		options.args.logs.args[key] = {
+			type = "execute",
+			name = key,
+			desc = desc,
+			width = "full",
+			arg = key,
+			disabled = InCombatLockdown,
+		}
 	end
 	if not next(options.args.logs.args) then
 		options.args.logs.args["no_logs"] = {
@@ -337,27 +333,14 @@ function plugin:BigWigs_ProfileUpdate()
 end
 
 function plugin:OnPluginEnable()
-	-- can't set a default global table as a plugin :(
-	if not self.db.global.ignoredEvents then
-		self.db.global.ignoredEvents = {}
-	end
 	-- cleanup old savedvars
-	if self.db.profile.ignoredEvents then
-		for k, v in next, self.db.profile.ignoredEvents do
-			self.db.global.ignoredEvents[k] = v
-		end
-		self.db.profile.ignoredEvents = nil
-	end
+	self.db.profile.ignoredEvents = nil
+	self.db.global.ignoredEvents = nil
 
 	-- try to fix memory overflow error
 	if Transcriptor and TranscriptDB == nil then
 		print("\n|cffff2020" .. L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
-		TranscriptDB = { ignoredEvents = {} }
-		for k, v in next, self.db.global.ignoredEvents do
-			TranscriptDB.ignoredEvents[k] = v
-		end
-	elseif not TranscriptDB.ignoredEvents then
-		TranscriptDB.ignoredEvents = {}
+		TranscriptDB = {}
 	end
 
 	self:RegisterMessage("BigWigs_ProfileUpdate")
