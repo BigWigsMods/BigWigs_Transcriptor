@@ -95,7 +95,7 @@ L["Delete short logs"] = true
 L["Automatically delete logs shorter than 30 seconds."] = true
 L["Keep one log per fight"] = true
 L["Only keep a log for the longest attempt or latest kill of an encounter."] = true
-L["Stored logs (%s) - Click to delete"] = true
+L["Stored logs (%s / %s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds. %s"] = true
 L["|cff20ff20Win!|r"] = true
@@ -126,10 +126,6 @@ local function GetOptions()
 			events[v] = v
 		end
 	end
-
-	UpdateAddOnMemoryUsage()
-	local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-	mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
 
 	local function get(info)
 		return plugin.db.profile[info[#info]]
@@ -199,7 +195,16 @@ local function GetOptions()
 			logs = {
 				type = "group",
 				inline = true,
-				name = L["Stored logs (%s) - Click to delete"]:format(mem),
+				name = function()
+					local count = 0
+					for _ in next, logs do count = count + 1 end
+
+					UpdateAddOnMemoryUsage()
+					local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+					mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
+
+					return L["Stored logs (%s / %s) - Click to delete"]:format(("|cffffffff%d|r"):format(count), mem)
+				end,
 				func = function(info)
 					Transcriptor:Clear(info.arg)
 					GameTooltip:Hide()
