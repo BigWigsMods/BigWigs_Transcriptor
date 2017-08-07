@@ -11,7 +11,7 @@ if not plugin then return end
 -- Locals
 --
 
--- luacheck: globals Transcriptor TranscriptDB
+-- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
 local ipairs, next, print, split = ipairs, next, print, string.split
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
@@ -122,7 +122,7 @@ local function GetOptions()
 
 	if not events then
 		events = {}
-		for i,v in ipairs(Transcriptor.events) do
+		for _, v in next, Transcriptor.events do
 			events[v] = v
 		end
 	end
@@ -225,7 +225,7 @@ local function GetOptions()
 
 	for key, log in next, logs do
 		local desc = nil
-		local numEvents = #log.total
+		local numEvents = log.total and #log.total or 0
 		if numEvents > 0 then
 			local killed, duration = isWin(log)
 			local result = killed and L["|cff20ff20Win!|r"] or ""
@@ -436,64 +436,64 @@ end
 
 function plugin:Stop(silent)
 	logging = nil
-	if Transcriptor:IsLogging() then
-		local logName = Transcriptor:StopLog()
+	if not Transcriptor:IsLogging() then return end
 
-		if self.db.profile.delete and logName then
-			local log = Transcriptor:Get(logName)
-			if #log.total == 0 or tonumber(log.total[#log.total]:match("^<(.-)%s")) < 30 then
-				Transcriptor:Clear(logName)
-				print("|cffff2020" .. L["Log deleted."])
-				logName = nil
+	local logName = Transcriptor:StopLog()
+
+	if self.db.profile.delete and logName then
+		local log = Transcriptor:Get(logName)
+		if #log.total == 0 or tonumber(log.total[#log.total]:match("^<(.-)%s")) < 30 then
+			Transcriptor:Clear(logName)
+			print("|cffff2020" .. L["Log deleted."])
+			logName = nil
+		end
+	end
+
+	if self.db.profile.keepone and logName then
+		local log = Transcriptor:Get(logName)
+		local encounter = parseLogName(logName)
+		if isWin(log) then
+			-- delete previous logs
+			for name, log in next, Transcriptor:GetAll() do
+				if name ~= logName and name:find(encounter, nil, true) then
+					Transcriptor:Clear(logName)
+				end
+			end
+		else
+			-- keep the longest attempt or last kill
+			local encounterLogs = {}
+			local lastWin, lastWinTime = nil, nil
+			local longLog, longLogTime = nil, nil
+			for name, log in next, Transcriptor:GetAll() do
+				local e, t = parseLogName(name)
+				if e == encounter then
+					encounterLogs[name] = true
+					local k, d = isWin(log)
+					if k and (not lastWin or t > lastWinTime) then
+						lastWin = name
+						lastWinTime = t
+					end
+					if not longLog or d > longLogTime then
+						longLog = name
+						longLogTime = d
+					end
+				end
+			end
+			local winner = lastWin or longLog
+			for name in next, encounterLogs do
+				if name ~= winner then
+					Transcriptor:Clear(name)
+				end
 			end
 		end
+	end
 
-		if self.db.profile.keepone and logName then
-			local log = Transcriptor:Get(logName)
-			local encounter = parseLogName(logName)
-			if isWin(log) then
-				-- delete previous logs
-				for name, log in next, Transcriptor:GetAll() do
-					if name ~= logName and name:find(encounter, nil, true) then
-						Transcriptor:Clear(logName)
-					end
-				end
-			else
-				-- keep the longest attempt or last kill
-				local encounterLogs = {}
-				local lastWin, lastWinTime = nil, nil
-				local longLog, longLogTime = nil, nil
-				for name, log in next, Transcriptor:GetAll() do
-					local e, t = parseLogName(name)
-					if e == encounter then
-						encounterLogs[name] = true
-						local k, d = isWin(log)
-						if k and (not lastWin or t > lastWinTime) then
-							lastWin = name
-							lastWinTime = t
-						end
-						if not longLog or d > longLogTime then
-							longLog = name
-							longLogTime = d
-						end
-					end
-				end
-				local winner = lastWin or longLog
-				for name in next, encounterLogs do
-					if name ~= winner then
-						Transcriptor:Clear(name)
-					end
-				end
-			end
-		end
-
-		if not silent then
-			-- check memory
-			UpdateAddOnMemoryUsage()
-			local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-			if mem > 60 then
-				print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
-			end
+	if not silent then
+		-- check memory
+		UpdateAddOnMemoryUsage()
+		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+		if mem > 60 then
+			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
 		end
 	end
 end
