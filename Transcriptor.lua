@@ -12,11 +12,10 @@ if not plugin then return end
 --
 
 -- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
-local ipairs, next, print, split = ipairs, next, print, string.split
+local ipairs, next, print, split, trim = ipairs, next, print, string.split, string.trim
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
 
-local events = nil
 local logging = nil
 local timer = nil
 
@@ -123,27 +122,34 @@ plugin.defaultDB = {
 	keepone = false,
 }
 
-local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
-local sorted = {}
+local GetOptions
+do
+	local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
+	local sorted = {}
 
-local function GetDescription(info)
-	local log = Transcriptor:Get(info.arg)
-	if not log then return end
+	local timerEvents = {"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"}
 
-	local numEvents = log.total and #log.total or 0
-	if numEvents == 0 then return end
+	local function GetDescription(info)
+		local log = Transcriptor:Get(info.arg)
+		if not log then return end
 
-	local killed, duration = isWin(log)
-	local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, killed and L["|cff20ff20Win!|r"] or "")
+		local numEvents = log.total and #log.total or 0
+		if numEvents == 0 then return end
 
-	if plugin.db.profile.details and log.TIMERS then
+		local killed, duration = isWin(log)
+		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, killed and L["|cff20ff20Win!|r"] or "")
+		if not log.TIMERS or not plugin.db.profile.details then
+			return desc
+		end
+
 		desc = ("%s\n"):format(desc)
-		for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
+		for _, event in ipairs(timerEvents) do
 			if log.TIMERS[event] then
-				local spells = CopyTable(log.TIMERS[event])
 				desc = ("%s\n%s\n"):format(desc, event)
-				-- un-funkify this shit
+
+				local spells = CopyTable(log.TIMERS[event])
 				if spells[1] then
+					-- un-funkify this shit
 					for i = 1, #spells do
 						local k, v = split("=", spells[i])
 						local spellName, spellId, npc = k:match("(.+)-(%d+)-(npc:%d+)") -- Armageddon-240910-npc:117269
@@ -152,6 +158,7 @@ local function GetDescription(info)
 						spells[i] = nil
 					end
 				end
+
 				wipe(sorted)
 				for spell in next, spells do sorted[#sorted + 1] = spell end
 				sort(sorted, cmp)
@@ -173,9 +180,10 @@ local function GetDescription(info)
 							local upper = q3 + (1.5 * iqr)
 							local count, total = 0, 0
 							for i = 1, #values do
-								if not tonumber(values[i]) then -- handle "stage" times
+								local v = tonumber(values[i])
+								if not v then -- handle "stage" times
 									if values[i+1] then
-										local fromStage,fromLast = strtrim(values[i+1]):match("^(.+)/(.+)$")
+										local fromStage,fromLast = trim(values[i+1]):match("^(.+)/(.+)$")
 										if fromLast then
 											values[i] = ("|cffffff9a%s (+%s)|r"):format(values[i], fromStage)
 											values[i+1] = fromLast
@@ -184,14 +192,13 @@ local function GetDescription(info)
 										values[i] = ("|cffffff9a%s|r"):format(values[i])
 									end
 								else
-									local v = tonumber(values[i])
 									if lower <= v and v <= upper then
 										count = count + 1
 										total = total + v
-										values[i] = v
 									else
-										values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
+										v = ("|cffff7f3f%s|r"):format(v) -- outlier
 									end
+									values[i] = v
 								end
 								if i % 24 == 0 then -- simple wrapping
 									values[i] = ("\n    %s"):format(values[i])
@@ -203,20 +210,12 @@ local function GetDescription(info)
 				end
 			end
 		end
+
+		return desc
 	end
 
-	return desc
-end
 
-local function GetOptions()
-	local logs = Transcriptor:GetAll()
-
-	if not events then
-		events = {}
-		for _, v in next, Transcriptor.events do
-			events[v] = v
-		end
-	end
+	local options = nil
 
 	local function get(info)
 		return plugin.db.profile[info[#info]]
@@ -225,134 +224,145 @@ local function GetOptions()
 		plugin.db.profile[info[#info]] = value
 	end
 
-	local options = {
-		name = L["Transcriptor"],
-		type = "group",
-		args = {
-			heading = {
-				type = "description",
-				name = L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."].."\n",
-				fontSize = "medium",
-				width = "full",
-				order = 1,
-			},
-			enabled = {
-				type = "toggle",
-				name = ENABLE,
-				get = function(info) return plugin.db.profile.enabled end,
-				set = function(info, value)
-					plugin.db.profile.enabled = value
-					plugin:Disable()
-					plugin:Enable()
-				end,
-				order = 2,
-			},
-			onpull = {
-				type = "toggle",
-				name = L["Start with pull timer"],
-				desc = L["Start Transcriptor logging from a pull timer at two seconds remaining."],
-				get = function(info) return plugin.db.profile.onpull end,
-				set = function(info, value)
-					plugin.db.profile.onpull = value
-					plugin:Disable()
-					plugin:Enable()
-				end,
-				order = 3,
-			},
-			delete = {
-				type = "toggle",
-				name = L["Delete short logs"],
-				desc = L["Automatically delete logs shorter than 30 seconds."],
-				get = get,
-				set = set,
-				order = 4,
-			},
-			keepone = {
-				type = "toggle",
-				name = L["Keep one log per fight"],
-				desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
-				get = get,
-				set = set,
-				order = 5,
-			},
-			details = {
-				type = "toggle",
-				name = L["Show spell cast details"],
-				desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
-				get = get,
-				set = set,
-				order = 6,
-			},
-			logs = {
+	function GetOptions()
+		if not options then
+			local events = {}
+			for _, v in next, Transcriptor.events do
+				events[v] = v
+			end
+
+			options = {
+				name = L["Transcriptor"],
 				type = "group",
-				inline = true,
-				name = function()
-					local count = 0
-					for _ in next, logs do count = count + 1 end
+				args = {
+					heading = {
+						type = "description",
+						name = L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."].."\n",
+						fontSize = "medium",
+						width = "full",
+						order = 1,
+					},
+					enabled = {
+						type = "toggle",
+						name = ENABLE,
+						get = function(info) return plugin.db.profile.enabled end,
+						set = function(info, value)
+							plugin.db.profile.enabled = value
+							plugin:Disable()
+							plugin:Enable()
+						end,
+						order = 2,
+					},
+					onpull = {
+						type = "toggle",
+						name = L["Start with pull timer"],
+						desc = L["Start Transcriptor logging from a pull timer at two seconds remaining."],
+						get = function(info) return plugin.db.profile.onpull end,
+						set = function(info, value)
+							plugin.db.profile.onpull = value
+							plugin:Disable()
+							plugin:Enable()
+						end,
+						order = 3,
+					},
+					delete = {
+						type = "toggle",
+						name = L["Delete short logs"],
+						desc = L["Automatically delete logs shorter than 30 seconds."],
+						get = get,
+						set = set,
+						order = 4,
+					},
+					keepone = {
+						type = "toggle",
+						name = L["Keep one log per fight"],
+						desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
+						get = get,
+						set = set,
+						order = 5,
+					},
+					details = {
+						type = "toggle",
+						name = L["Show spell cast details"],
+						desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
+						get = get,
+						set = set,
+						order = 6,
+					},
+					logs = {
+						type = "group",
+						inline = true,
+						name = function()
+							local count = 0
+							for _ in next, Transcriptor:GetAll() do count = count + 1 end
 
-					UpdateAddOnMemoryUsage()
-					local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-					mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
+							UpdateAddOnMemoryUsage()
+							local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+							mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffffff", mem)
 
-					return L["Stored logs (%s / %s) - Click to delete"]:format(("|cffffffff%d|r"):format(count), mem)
-				end,
-				func = function(info)
-					Transcriptor:Clear(info.arg)
-					GameTooltip:Hide()
-					collectgarbage()
-				end,
-				order = 10,
+							return L["Stored logs (%s / %s) - Click to delete"]:format(("|cffffffff%d|r"):format(count), mem)
+						end,
+						func = function(info)
+							Transcriptor:Clear(info.arg)
+							GameTooltip:Hide()
+							collectgarbage()
+						end,
+						width = "full",
+						order = 10,
+						args = {},
+					},
+					ignoredEvents = {
+						type = "multiselect",
+						name = L["Ignored Events"],
+						get = function(info, key) return TranscriptIgnore[key] end,
+						set = function(info, key, value)
+							TranscriptIgnore[key] = value or nil
+						end,
+						values = events,
+						width = "double",
+						order = 20,
+					},
+				},
+			}
+		end
+		wipe(options.args.logs.args)
+
+		local logs = Transcriptor:GetAll()
+		for key, log in next, logs do
+			options.args.logs.args[key] = {
+				type = "execute",
+				name = key,
+				desc = GetDescription,
+				arg = key,
 				width = "full",
-				args = {},
-			},
-			ignoredEvents = {
-				type = "multiselect",
-				name = L["Ignored Events"],
-				get = function(info, key) return TranscriptIgnore[key] end,
-				set = function(info, key, value)
-					TranscriptIgnore[key] = value or nil
-				end,
-				values = events,
-				order = 20,
-				width = "double",
-			},
-		},
-	}
+				disabled = InCombatLockdown,
+			}
+		end
 
-	for key, log in next, logs do
-		local desc = nil
-		options.args.logs.args[key] = {
-			type = "execute",
-			name = key,
-			desc = GetDescription,
-			width = "full",
-			arg = key,
-			disabled = InCombatLockdown,
-		}
-	end
-	if not next(options.args.logs.args) then
-		options.args.logs.args["no_logs"] = {
-			type = "description",
-			name = "\n"..L["No logs recorded"].."\n",
-			fontSize = "medium",
-			width = "full",
-		}
-	else
-		options.args.logs.args["clear_all"] = {
+		if next(logs) then
+			options.args.logs.args["clear_all"] = {
 				type = "execute",
 				name = L["Clear All"],
-				width = "full",
 				func = function()
 					Transcriptor:ClearAll()
 					GameTooltip:Hide()
 					collectgarbage()
 				end,
-				disabled = InCombatLockdown,
+				width = "full",
 				order = 0,
+				disabled = InCombatLockdown,
 			}
-	end
+		else
+			options.args.logs.args["no_logs"] = {
+				type = "description",
+				name = "\n"..L["No logs recorded"].."\n",
+				fontSize = "medium",
+				width = "full",
+			}
+		end
 
-	return options
+		return options
+	end
 end
 
 plugin.subPanelOptions = {
