@@ -24,7 +24,16 @@ local temp = {}
 local function quartiles(t)
 	wipe(temp)
 	for i = 1, #t do
-		temp[i] = tonumber(t[i])
+		local v = tonumber(t[i])
+		if v then
+			temp[#temp+1] = v
+		elseif t[i]:find("/", nil, true) then
+			local _,v = split("/", t[i], 2)
+			v = tonumber(v)
+			if v then
+				temp[#temp+1] = v
+			end
+		end
 	end
 	sort(temp)
 	local count = #temp
@@ -116,6 +125,88 @@ plugin.defaultDB = {
 
 local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
 local sorted = {}
+
+local function GetDescription(info)
+	local log = Transcriptor:Get(info.arg)
+	if not log then return end
+
+	local numEvents = log.total and #log.total or 0
+	if numEvents == 0 then return end
+
+	local killed, duration = isWin(log)
+	local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, killed and L["|cff20ff20Win!|r"] or "")
+
+	if plugin.db.profile.details and log.TIMERS then
+		desc = ("%s\n"):format(desc)
+		for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
+			if log.TIMERS[event] then
+				local spells = CopyTable(log.TIMERS[event])
+				desc = ("%s\n%s\n"):format(desc, event)
+				-- un-funkify this shit
+				if spells[1] then
+					for i = 1, #spells do
+						local k, v = split("=", spells[i])
+						local spellName, spellId, npc = k:match("(.+)-(%d+)-(npc:%d+)") -- Armageddon-240910-npc:117269
+						k = ("%s-%s-%s"):format(spellId, spellName, npc)                -- 240910-Armageddon-npc:117269
+						spells[k] = v
+						spells[i] = nil
+					end
+				end
+				wipe(sorted)
+				for spell in next, spells do sorted[#sorted + 1] = spell end
+				sort(sorted, cmp)
+				for _, spell in ipairs(sorted) do
+					local spellId, spellName = split("-", spell, 2)
+					spellName = spellName:gsub("%-npc:.+$", "") -- should probably show this somehow
+					local values = {split(",", spells[spell])}
+					local _, pull = split(":", tremove(values, 1))
+					if #values == 0 then
+						desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
+					else
+						-- use the lower and upper quartiles to find outliers
+						local q1, q3, low, high = quartiles(values)
+						if low == high then
+							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
+						else
+							local iqr = q3 - q1
+							local lower = q1 - (1.5 * iqr)
+							local upper = q3 + (1.5 * iqr)
+							local count, total = 0, 0
+							for i = 1, #values do
+								if not tonumber(values[i]) then -- handle "stage" times
+									if values[i+1] then
+										local fromStage,fromLast = strtrim(values[i+1]):match("^(.+)/(.+)$")
+										if fromLast then
+											values[i] = ("|cffffff9a%s (+%s)|r"):format(values[i], fromStage)
+											values[i+1] = fromLast
+										end
+									else
+										values[i] = ("|cffffff9a%s|r"):format(values[i])
+									end
+								else
+									local v = tonumber(values[i])
+									if lower <= v and v <= upper then
+										count = count + 1
+										total = total + v
+										values[i] = v
+									else
+										values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
+									end
+								end
+								if i % 24 == 0 then -- simple wrapping
+									values[i] = ("\n    %s"):format(values[i])
+								end
+							end
+							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return desc
+end
 
 local function GetOptions()
 	local logs = Transcriptor:GetAll()
@@ -230,61 +321,10 @@ local function GetOptions()
 
 	for key, log in next, logs do
 		local desc = nil
-		local numEvents = log.total and #log.total or 0
-		if numEvents > 0 then
-			local killed, duration = isWin(log)
-			local result = killed and L["|cff20ff20Win!|r"] or ""
-			desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
-			if plugin.db.profile.details and log.TIMERS then
-				desc = ("%s\n"):format(desc)
-				for _, event in ipairs{"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"} do
-					local spells = log.TIMERS[event]
-					if spells then
-						desc = ("%s\n%s\n"):format(desc, event)
-						wipe(sorted)
-						for spell in next, spells do sorted[#sorted + 1] = spell end
-						sort(sorted, cmp)
-						for _, spell in ipairs(sorted) do
-							local spellId, spellName = split("-", spell, 2)
-							local values = {split(",", spells[spell])}
-							local _, pull = split(":", tremove(values, 1))
-							if #values == 0 then
-								desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
-							else
-								-- use the lower and upper quartiles to find outliers
-								local q1, q3, low, high = quartiles(values)
-								if low == high then
-									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
-								else
-									local iqr = q3 - q1
-									local lower = q1 - (1.5 * iqr)
-									local upper = q3 + (1.5 * iqr)
-									local count, total = 0, 0
-									for i = 1, #values do
-										values[i] = tonumber(values[i])
-										local v = values[i]
-										if lower <= v and v <= upper then
-											count = count + 1
-											total = total + v
-										else
-											values[i] = ("|cffff7f3f%s|r"):format(v) -- outlier
-										end
-										if i % 24 == 0 then -- simple wrapping
-											values[i] = ("\n    %s"):format(values[i])
-										end
-									end
-									desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
-								end
-							end
-						end
-					end
-				end
-			end
-		end
 		options.args.logs.args[key] = {
 			type = "execute",
 			name = key,
-			desc = desc,
+			desc = GetDescription,
 			width = "full",
 			arg = key,
 			disabled = InCombatLockdown,
