@@ -95,6 +95,8 @@ L["Your Transcriptor DB has been reset! You can still view the contents of the D
 L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."] = true
 L["Log deleted."] = true
 
+L["Raid only"] = true
+L["Only enable logging while in a raid instance."] = true
 L["Start with pull timer"] = true
 L["Start Transcriptor logging from a pull timer at two seconds remaining."] = true
 L["Show spell cast details"] = true
@@ -120,6 +122,7 @@ plugin.defaultDB = {
 	details = false,
 	delete = false,
 	keepone = false,
+	raid = false,
 }
 
 local GetOptions
@@ -253,6 +256,14 @@ do
 						end,
 						order = 2,
 					},
+					raid = {
+						type = "toggle",
+						name = L["Raid only"],
+						desc = L["Only enable logging while in a raid instance."],
+						get = get,
+						set = set,
+						order = 3,
+					},
 					onpull = {
 						type = "toggle",
 						name = L["Start with pull timer"],
@@ -263,7 +274,7 @@ do
 							plugin:Disable()
 							plugin:Enable()
 						end,
-						order = 3,
+						order = 4,
 					},
 					delete = {
 						type = "toggle",
@@ -271,7 +282,7 @@ do
 						desc = L["Automatically delete logs shorter than 30 seconds."],
 						get = get,
 						set = set,
-						order = 4,
+						order = 5,
 					},
 					keepone = {
 						type = "toggle",
@@ -279,7 +290,7 @@ do
 						desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
 						get = get,
 						set = set,
-						order = 5,
+						order = 6,
 					},
 					details = {
 						type = "toggle",
@@ -287,7 +298,7 @@ do
 						desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
 						get = get,
 						set = set,
-						order = 6,
+						order = 7,
 					},
 					logs = {
 						type = "group",
@@ -475,6 +486,9 @@ function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
 end
 
 function plugin:Start()
+	local _, instanceType = GetInstanceInfo()
+	if instanceType ~= "raid" and self.db.profile.raid then return end
+
 	if timer then
 		self:CancelTimer(timer)
 		timer = nil
