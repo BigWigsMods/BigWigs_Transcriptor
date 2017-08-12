@@ -39,13 +39,13 @@ local function quartiles(t)
 
 	-- stupid small data sets
 	if count == 0 then
-		return 0, 0, 0, 0
+		return 0, 0, 0, 0, 0
 	elseif count == 1 then
 		local a = temp[1]
-		return a, a, a, a
+		return a, a, a, a, 1
 	elseif count == 2 then
 		local a, b = temp[1], temp[2]
-		return a, b, a, b
+		return a, b, a, b, 2
 	end
 
 	local q1, q3
@@ -56,7 +56,7 @@ local function quartiles(t)
 		q1 = temp[ceil(count / 4)]
 		q3 = temp[ceil(count * .75)]
 	end
-	return q1, q3, temp[1], temp[count] -- return the min/max since it's sorted
+	return q1, q3, temp[1], temp[count], count
 end
 
 local function isWin(log)
@@ -167,16 +167,20 @@ do
 				sort(sorted, cmp)
 				for _, spell in ipairs(sorted) do
 					local spellId, spellName = split("-", spell, 2)
-					spellName = spellName:gsub("%-npc:.+$", "") -- should probably show this somehow
+					local npc = spellName:match("-(npc:.+)")
+					if npc then
+						spellName = spellName:gsub("%-npc:.+$", "")
+						npc = (" %s"):format(npc)
+					end
 					local values = {split(",", spells[spell])}
 					local _, pull = split(":", tremove(values, 1))
 					if #values == 0 then
-						desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, 1, pull)
+						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", 1, pull)
 					else
 						-- use the lower and upper quartiles to find outliers
-						local q1, q3, low, high = quartiles(values)
+						local q1, q3, low, high, count = quartiles(values)
 						if low == high then
-							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, #values + 1, pull, low)
+							desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", count + 1, pull, low)
 						else
 							local iqr = q3 - q1
 							local lower = q1 - (1.5 * iqr)
@@ -207,7 +211,7 @@ do
 									values[i] = ("\n    %s"):format(values[i])
 								end
 							end
-							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, #values + 1, total / count, low, high, pull, concat(values, ", "))
+							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, count + 1, total / count, low, high, pull, concat(values, ", "))
 						end
 					end
 				end
