@@ -27,7 +27,7 @@ local function quartiles(t)
 		if v then
 			temp[#temp+1] = v
 		elseif t[i]:find("/", nil, true) then
-			local _,v = split("/", t[i], 2)
+			local _,v = split("/", t[i])
 			v = tonumber(v)
 			if v then
 				temp[#temp+1] = v
@@ -129,7 +129,6 @@ local GetOptions
 do
 	local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
 	local sorted = {}
-
 	local timerEvents = {"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"}
 
 	local function GetDescription(info)
@@ -152,9 +151,9 @@ do
 
 				local spells = CopyTable(log.TIMERS[event])
 				if spells[1] then
-					-- un-funkify this shit
+					-- un-funkify this shit (convert the new indexed table format back into a keyed table)
 					for i = 1, #spells do
-						local k, v = split("=", spells[i])
+						local k, v = split("=", spells[i], 2)
 						local spellName, spellId, npc = k:match("(.+)-(%d+)-(npc:%d+)") -- Armageddon-240910-npc:117269
 						k = ("%s-%s-%s"):format(spellId, spellName, npc)                -- 240910-Armageddon-npc:117269
 						spells[k] = v
@@ -224,18 +223,18 @@ do
 
 	local options = nil
 
-	local function get(info)
-		return plugin.db.profile[info[#info]]
-	end
-	local function set(info, value)
-		plugin.db.profile[info[#info]] = value
-	end
-
 	function GetOptions()
 		if not options then
 			local events = {}
 			for _, v in next, Transcriptor.events do
 				events[v] = v
+			end
+
+			local function get(info)
+				return plugin.db.profile[info[#info]]
+			end
+			local function set(info, value)
+				plugin.db.profile[info[#info]] = value
 			end
 
 			options = {
