@@ -60,16 +60,21 @@ local function quartiles(t)
 end
 
 local function isWin(log)
-	local killed = nil
+	local killed, encounter = nil, nil
 	if log.COMBAT then
+		-- should probably handle multiple encounters in one log, but meh
 		for _, line in next, log.COMBAT do
-			if line:find("BOSS_KILL", nil, true) then
+			if line:find("ENCOUNTER_START", nil, true) then
+				encounter = line:match("ENCOUNTER_START#%d+#(.-)#") -- "<61.75 21:43:59> [ENCOUNTER_START] ENCOUNTER_START#1954#Maiden of Virtue#23#5"
+			elseif line:find("BOSS_KILL", nil, true) then
+				encounter = line:match("#(.-)$") -- "<220.90 21:46:38> [BOSS_KILL] 1954#Maiden of Virtue"
 				killed = true
+				break
 			end
 		end
 	end
 	local duration = log.total and tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
-	return killed, duration
+	return killed, duration, encounter
 end
 
 local function parseLogName(logName)
@@ -108,9 +113,11 @@ L["Only keep a log for the longest attempt or latest kill of an encounter."] = t
 L["Stored logs (%s / %s) - Click to delete"] = true
 L["No logs recorded"] = true
 L["%d stored events over %.01f seconds. %s"] = true
-L["|cff20ff20Win!|r"] = true
 L["Ignored Events"] = true
 L["Clear All"] = true
+
+L.win = "|cff20ff20%s " .. _G.WIN .. "|r"
+L.failed = "|cffff2020%s " .. _G.FAILED .. "|r"
 
 -------------------------------------------------------------------------------
 -- Options
@@ -138,8 +145,9 @@ do
 		local numEvents = log.total and #log.total or 0
 		if numEvents == 0 then return end
 
-		local killed, duration = isWin(log)
-		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, killed and L["|cff20ff20Win!|r"] or "")
+		local killed, duration, encounter = isWin(log)
+		local result = encounter and (killed and L.win:format(encounter) or L.failed:format(encounter)) or ""
+		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
 		if not log.TIMERS or not plugin.db.profile.details then
 			return desc
 		end
