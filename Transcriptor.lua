@@ -351,16 +351,14 @@ do
 
 		local logs = Transcriptor:GetAll()
 		for key, log in next, logs do
-			if key then
-				options.args.logs.args[key] = {
-					type = "execute",
-					name = key,
-					desc = GetDescription,
-					arg = key,
-					width = "full",
-					disabled = InCombatLockdown,
-				}
-			end
+			options.args.logs.args[key] = {
+				type = "execute",
+				name = key,
+				desc = GetDescription,
+				arg = key,
+				width = "full",
+				disabled = InCombatLockdown,
+			}
 		end
 
 		if next(logs) then
@@ -537,7 +535,7 @@ function plugin:Stop(silent)
 		if isWin(log) then
 			-- delete previous logs
 			for name, log in next, Transcriptor:GetAll() do
-				if name and name ~= logName and name:find(encounter, nil, true) then
+				if name ~= logName and name:find(encounter, nil, true) then
 					Transcriptor:Clear(logName)
 				end
 			end
@@ -547,19 +545,17 @@ function plugin:Stop(silent)
 			local lastWin, lastWinTime = nil, nil
 			local longLog, longLogTime = nil, nil
 			for name, log in next, Transcriptor:GetAll() do
-				if name then
-					local e, t = parseLogName(name)
-					if e == encounter then
-						encounterLogs[name] = true
-						local k, d = isWin(log)
-						if k and (not lastWin or t > lastWinTime) then
-							lastWin = name
-							lastWinTime = t
-						end
-						if not longLog or d > longLogTime then
-							longLog = name
-							longLogTime = d
-						end
+				local e, t = parseLogName(name)
+				if e == encounter then
+					encounterLogs[name] = true
+					local k, d = isWin(log)
+					if k and (not lastWin or t > lastWinTime) then
+						lastWin = name
+						lastWinTime = t
+					end
+					if not longLog or d > longLogTime then
+						longLog = name
+						longLogTime = d
 					end
 				end
 			end
