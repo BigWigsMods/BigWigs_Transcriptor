@@ -254,10 +254,23 @@ do
 	end
 
 
-	local options = nil
-
+	local function get(info)
+		return plugin.db.profile[info[#info]]
+	end
+	local function set(info, value)
+		plugin.db.profile[info[#info]] = value
+	end
+	local function set_reboot(info, value)
+		plugin.db.profile[info[#info]] = value
+		plugin:Disable()
+		plugin:Enable()
+	end
 	local function delete(info)
-		Transcriptor:Clear(info.arg)
+		if info.arg then
+			Transcriptor:Clear(info.arg)
+		else
+			Transcriptor:ClearAll()
+		end
 		GameTooltip:Hide()
 		collectgarbage()
 	end
@@ -265,137 +278,120 @@ do
 		return InCombatLockdown()
 	end
 
+	local events = nil
+
 	function GetOptions()
 		local logs = Transcriptor:GetAll()
+		local count = 0
+		for _ in next, logs do
+			count = count + 1
+		end
 
-		if not options then
-			local events = {}
+		UpdateAddOnMemoryUsage()
+		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+		mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffd200", mem)
+
+		if not events then
+			events = {}
 			for _, v in next, Transcriptor.events do
 				events[v] = v
 			end
+		end
 
-			local function get(info)
-				return plugin.db.profile[info[#info]]
-			end
-			local function set(info, value)
-				plugin.db.profile[info[#info]] = value
-			end
-
-			options = {
-				name = L["Transcriptor"],
-				type = "group",
-				args = {
-					heading = {
-						type = "description",
-						name = L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."].."\n",
-						fontSize = "medium",
-						width = "full",
-						order = 1,
-					},
-					enabled = {
-						type = "toggle",
-						name = ENABLE,
-						get = function(info) return plugin.db.profile.enabled end,
-						set = function(info, value)
-							plugin.db.profile.enabled = value
-							plugin:Disable()
-							plugin:Enable()
-						end,
-						order = 2,
-					},
-					raid = {
-						type = "toggle",
-						name = L["Raid only"],
-						desc = L["Only enable logging while in a raid instance."],
-						get = get,
-						set = set,
-						order = 3,
-					},
-					onpull = {
-						type = "toggle",
-						name = L["Start with pull timer"],
-						desc = L["Start Transcriptor logging from a pull timer at two seconds remaining."],
-						get = function(info) return plugin.db.profile.onpull end,
-						set = function(info, value)
-							plugin.db.profile.onpull = value
-							plugin:Disable()
-							plugin:Enable()
-						end,
-						order = 4,
-					},
-					delete = {
-						type = "toggle",
-						name = L["Delete short logs"],
-						desc = L["Automatically delete logs shorter than 30 seconds."],
-						get = get,
-						set = set,
-						order = 5,
-					},
-					keepone = {
-						type = "toggle",
-						name = L["Keep one log per fight"],
-						desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
-						get = get,
-						set = set,
-						order = 6,
-					},
-					details = {
-						type = "toggle",
-						name = L["Show spell cast details"],
-						desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
-						get = get,
-						set = set,
-						order = 7,
-					},
-					clear_all = {
-						type = "execute",
-						name = L["Clear All"],
-						func = function()
-							Transcriptor:ClearAll()
-							GameTooltip:Hide()
-							collectgarbage()
-						end,
-						width = "full",
-						disabled = function() return InCombatLockdown() or not next(logs) end,
-						order = 8,
-					},
-					size = {
-						type = "description",
-						name = function()
-							local count = 0
-							for _ in next, Transcriptor:GetAll() do count = count + 1 end
-
-							UpdateAddOnMemoryUsage()
-							local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-							mem = ("|cff%s%.01f MB|r"):format(mem > 60 and "ff2020" or "ffd200", mem)
-
-							return L["Stored logs (%s / %s) - Click to delete"]:format(count, mem)
-						end,
-						fontSize = "medium",
-						width = "full",
-						hidden = function() return not next(logs) end,
-						order = 9,
-					},
-					ignored = {
-						type = "group",
-						name = "|cffffffff"..L["Ignored Events"].."|r",
-						order = -1,
-						args = {
-							ignored = {
-								type = "multiselect",
-								name = L["Ignored Events"],
-								get = function(info, key) return TranscriptIgnore[key] end,
-								set = function(info, key, value)
-									TranscriptIgnore[key] = value or nil
-								end,
-								values = events,
-								width = "double",
-							},
+		local options = {
+			name = L["Transcriptor"],
+			type = "group",
+			args = {
+				heading = {
+					type = "description",
+					name = L["Automatically start Transcriptor logging when you pull a boss and stop when you win or wipe."].."\n",
+					fontSize = "medium",
+					width = "full",
+					order = 1,
+				},
+				enabled = {
+					type = "toggle",
+					name = ENABLE,
+					get = get,
+					set = set_reboot,
+					order = 2,
+				},
+				raid = {
+					type = "toggle",
+					name = L["Raid only"],
+					desc = L["Only enable logging while in a raid instance."],
+					get = get,
+					set = set,
+					order = 3,
+				},
+				onpull = {
+					type = "toggle",
+					name = L["Start with pull timer"],
+					desc = L["Start Transcriptor logging from a pull timer at two seconds remaining."],
+					get = get,
+					set = set_reboot,
+					order = 4,
+				},
+				delete = {
+					type = "toggle",
+					name = L["Delete short logs"],
+					desc = L["Automatically delete logs shorter than 30 seconds."],
+					get = get,
+					set = set,
+					order = 5,
+				},
+				keepone = {
+					type = "toggle",
+					name = L["Keep one log per fight"],
+					desc = L["Only keep a log for the longest attempt or latest kill of an encounter."],
+					get = get,
+					set = set,
+					order = 6,
+				},
+				details = {
+					type = "toggle",
+					name = L["Show spell cast details"],
+					desc = L["Include some spell stats and the time between casts in the log tooltip when available."],
+					get = get,
+					set = set,
+					order = 7,
+				},
+				clear = {
+					type = "execute",
+					name = L["Clear All"],
+					func = delete,
+					width = "full",
+					disabled = disabled,
+					hidden = function() return not next(logs) end,
+					order = 8,
+				},
+				size = {
+					type = "description",
+					name = L["Stored logs (%s / %s) - Click to delete"]:format(count, mem),
+					fontSize = "medium",
+					width = "full",
+					hidden = function() return not next(logs) end,
+					order = 9,
+				},
+				ignored = {
+					type = "group",
+					name = "|cffffffff"..L["Ignored Events"].."|r",
+					order = -1,
+					args = {
+						ignored = {
+							type = "multiselect",
+							name = L["Ignored Events"],
+							get = function(info, key) return TranscriptIgnore[key] end,
+							set = function(info, key, value)
+								TranscriptIgnore[key] = value or nil
+							end,
+							values = events,
+							width = "double",
 						},
 					},
 				},
-			}
-		end
+			},
+		}
 
 		for key, log in next, logs do
 			local info, ts, zone, encounter, killed = parseLogName(key, log)
@@ -447,6 +443,7 @@ end
 function plugin:BigWigs_ProfileUpdate()
 	self:Disable()
 	self:Enable()
+	self:Refresh()
 end
 
 function plugin:OnPluginEnable()
