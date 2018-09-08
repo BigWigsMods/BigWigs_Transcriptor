@@ -59,25 +59,6 @@ local function quartiles(t)
 	return q1, q3, temp[1], temp[count], count
 end
 
-local function isWin(log)
-	local killed, encounter = nil, nil
-	if log.COMBAT then
-		-- should probably handle multiple encounters in one log, but meh
-		for _, line in next, log.COMBAT do
-			if line:find("ENCOUNTER_START", nil, true) then
-				encounter = line:match("ENCOUNTER_START#%d+#(.-)#") -- "<61.75 21:43:59> [ENCOUNTER_START] ENCOUNTER_START#1954#Maiden of Virtue#23#5"
-			elseif line:find("BOSS_KILL", nil, true) then
-				encounter = line:match("#(.-)$") -- "<220.90 21:46:38> [BOSS_KILL] 1954#Maiden of Virtue"
-				killed = true
-				break
-			end
-		end
-	end
-	local duration = log.total and #log.total > 0 and tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
-	return killed, duration, encounter
-end
-
-
 local diffShort = {
 	[1] = "5N",
 	[2] = "5H",
@@ -97,14 +78,30 @@ local diffShort = {
 	[24] = "5TW",
 }
 
-local function parseLogName(logName, log)
+local function parseLogInfo(logName, log)
 	-- logNameFormat = "[%s]@[%s] - Zone:%d Difficulty:%d,%s Type:%s " .. format("Version: %s.%s", wowVersion, buildRevision)
 	local datetime, year, month, day, hour, min, sec, map, diff, _, type, version = logName:match("^(%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%]) %- Zone:(%d+) Difficulty:(%d+),(.+) Type:(.+) Version: (.+)$")
-	if not version then return end
+	if not version then return end -- new log format?
 
-	local killed, duration, encounter = isWin(log)
+	local killed, encounter, duration = nil, nil, 0
+	if log.COMBAT then
+		-- should probably handle multiple encounters in one log, but meh
+		for _, line in next, log.COMBAT do
+			if line:find("ENCOUNTER_START", nil, true) then
+				encounter = line:match("ENCOUNTER_START#%d+#(.-)#") -- "<61.75 21:43:59> [ENCOUNTER_START] ENCOUNTER_START#1954#Maiden of Virtue#23#5"
+			elseif line:find("BOSS_KILL", nil, true) then
+				encounter = line:match("#(.-)$") -- "<220.90 21:46:38> [BOSS_KILL] 1954#Maiden of Virtue"
+				killed = true
+				break
+			end
+		end
+	end
+	if log.total and #log.total > 0 then
+		duration = tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
+	end
+
 	local zone = GetRealZoneText(map) or tostring(map)
-	local info = string.format("%s - |cffffffff%s|r (%s)", zone, encounter or UNKNOWN, diffShort[tonumber(diff)])
+	local info = ("%s - |cffffffff%s|r (%s)"):format(zone, encounter or UNKNOWN, diffShort[tonumber(diff)])
 	local timestamp = time({day=day,month=month,year=year,hour=hour,min=min,sec=sec})
 
 	-- I should probably cache this stuff
@@ -170,9 +167,8 @@ do
 		local numEvents = log.total and #log.total or 0
 		if numEvents == 0 then return end
 
-		local killed, duration, encounter = isWin(log)
-		local result = ""
-		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, result)
+		local duration = tonumber(log.total[numEvents]:match("^<(.-)%s")) or 0
+		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, "")
 		if not log.TIMERS or not plugin.db.profile.details then
 			return desc
 		end
@@ -394,9 +390,9 @@ do
 		}
 
 		for key, log in next, logs do
-			local info, ts, zone, encounter, killed = parseLogName(key, log)
+			local info, ts, zone, encounter, killed = parseLogInfo(key, log)
 			local result = killed and L.win or encounter and L.failed or ""
-			local name = string.format("[%s] %s%s", date("%F %T", ts), info:gsub("^.- %- ", ""), result)
+			local name = ("[%s] %s%s"):format(date("%F %T", ts), info:gsub("^.- %- ", ""), result)
 
 			if not options.args[zone] then
 				options.args[zone] = {
@@ -568,11 +564,11 @@ function plugin:Stop(silent)
 
 	if self.db.profile.keepone and logName then
 		local log = Transcriptor:Get(logName)
-		local encounter, _, _, _, isWin = parseLogName(logName, log)
+		local encounter, _, _, _, isWin = parseLogInfo(logName, log)
 		if isWin then
 			-- delete previous logs
 			for name, log in next, Transcriptor:GetAll() do
-				local e = parseLogName(name, log)
+				local e = parseLogInfo(name, log)
 				if name ~= logName and e == encounter then
 					Transcriptor:Clear(logName)
 				end
@@ -583,7 +579,7 @@ function plugin:Stop(silent)
 			local lastWin, lastWinTime = nil, nil
 			local longLog, longLogTime = nil, nil
 			for name, log in next, Transcriptor:GetAll() do
-				local e, t, _, _, k, d = parseLogName(name, log)
+				local e, t, _, _, k, d = parseLogInfo(name, log)
 				if e == encounter then
 					encounterLogs[name] = true
 					if k and (not lastWin or t > lastWinTime) then
