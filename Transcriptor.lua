@@ -73,7 +73,7 @@ local function isWin(log)
 			end
 		end
 	end
-	local duration = log.total and tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
+	local duration = log.total and #log.total > 0 and tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
 	return killed, duration, encounter
 end
 
