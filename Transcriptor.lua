@@ -80,8 +80,15 @@ local diffShort = {
 
 local function parseLogInfo(logName, log)
 	-- logNameFormat = "[%s]@[%s] - Zone:%d Difficulty:%d,%s Type:%s " .. format("Version: %s.%s", wowVersion, buildRevision)
-	local datetime, year, month, day, hour, min, sec, map, diff, _, type, version = logName:match("^(%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%]) %- Zone:(%d+) Difficulty:(%d+),(.+) Type:(.+) Version: (.+)$")
-	if not version then return end -- new log format?
+	-- "[2018-09-04]@[18:11:58] - Zone:1763 Difficulty:8,5Challenge Type:party Version: 8.0.1.27547"
+	local year, month, day, hour, min, sec, map, diff, _, _, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone:(%d+) Difficulty:(%d+),(.+) Type:(.+) Version: (.+)$")
+	if not version then
+		-- try previous format
+		-- logNameFormat = "[%s]@[%s] - %d/%d/%s/%s/%s@%s" .. format(" (%s) (%s.%s)", version, wowVersion, buildRevision)
+		-- "[2017-06-20]@[23:26:47] - 1147/1676/Tomb of Sargeras/Tomb of Sargeras/The Twisting Nether@Heroic (v7.2.0) (7.2.5.24367)"
+		year, month, day, hour, min, sec, map, diff, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- %d+/(%d+)/.-/.-/.-@(.-) %(.-%) %((.-)%)$")
+	end
+	if not version then return end
 
 	local killed, encounter, duration = nil, nil, 0
 	if log.COMBAT then
@@ -100,8 +107,9 @@ local function parseLogInfo(logName, log)
 		duration = tonumber(log.total[#log.total]:match("^<(.-)%s")) or 0
 	end
 
+	local diffName = diffShort[tonumber(diff)] or GetDifficultyInfo(diff) or diff
 	local zone = GetRealZoneText(map) or tostring(map)
-	local info = ("%s - |cffffffff%s|r (%s)"):format(zone, encounter or UNKNOWN, diffShort[tonumber(diff)])
+	local info = ("%s - |cffffffff%s|r (%s)"):format(zone, encounter or UNKNOWN, diffName)
 	local timestamp = time({day=day,month=month,year=year,hour=hour,min=min,sec=sec})
 
 	-- I should probably cache this stuff
@@ -391,8 +399,14 @@ do
 
 		for key, log in next, logs do
 			local info, ts, zone, encounter, killed = parseLogInfo(key, log)
-			local result = killed and L.win or encounter and L.failed or ""
-			local name = ("[%s] %s%s"):format(date("%F %T", ts), info:gsub("^.- %- ", ""), result)
+			local name
+			if info then
+				local result = killed and L.win or encounter and L.failed or ""
+				name = ("[%s] %s%s"):format(date("%F %T", ts), info:gsub("^.- %- ", ""), result)
+			else
+				name = key
+				zone = UNKNOWN
+			end
 
 			if not options.args[zone] then
 				options.args[zone] = {
