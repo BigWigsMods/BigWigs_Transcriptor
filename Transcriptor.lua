@@ -90,14 +90,19 @@ local function parseLogInfo(logName, log)
 	end
 	if not version then return end
 
-	local killed, encounter, duration = nil, nil, 0
+	local killed, encounter, duration = false, nil, 0
 	if log.COMBAT then
 		-- should probably handle multiple encounters in one log, but meh
 		for _, line in next, log.COMBAT do
-			if line:find("ENCOUNTER_START", nil, true) or line:find("ENCOUNTER_END", nil, true) then
+			if line:find("ENCOUNTER_START", nil, true) then
 				-- "<1.94 23:38:46> [ENCOUNTER_START] ENCOUNTER_START#2051#Kil'jaeden#15#24"
-				-- "<524.88 23:47:29> [ENCOUNTER_END] 2051#Kil'jaeden#15#24#1"
 				encounter = line:match("%d+#(.-)#%d+#%d+")
+			elseif line:find("ENCOUNTER_END", nil, true) then
+				-- "<524.88 23:47:29> [ENCOUNTER_END] 2051#Kil'jaeden#15#24#1"
+				local e, k = line:match("%d+#(.-)#%d+#%d+#(%d)$")
+				encounter = e
+				killed = tonumber(k) == 1
+				break
 			elseif line:find("BOSS_KILL", nil, true) then
 				-- "<524.88 23:47:29> [BOSS_KILL] 2051#Kil'jaeden"
 				encounter = line:match("#(.-)$")
