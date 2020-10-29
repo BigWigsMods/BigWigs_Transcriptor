@@ -1,5 +1,2 @@
 package-as: BigWigs_Transcriptor
 wowi-archive-previous: no
-
-ignore:
-  - README.md

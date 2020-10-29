@@ -14,4 +14,3 @@ jobs:
         uses: BigWigsMods/actions/luacheck@master
         with:
           args: -qo 011
-          config: https://raw.githubusercontent.com/BigWigsMods/BigWigs/master/.luacheckrc
