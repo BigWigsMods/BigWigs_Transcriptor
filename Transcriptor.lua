@@ -216,7 +216,7 @@ do
 						spellName = spellName:gsub("%-npc:.+$", "")
 						npc = (" %s"):format(npc)
 					end
-					local values = {split(",", spells[spell]:gsub("%b[]",""))}
+					local values = {split(",", (spells[spell]:gsub("%b[]","")))}
 					local _, pull = split(":", tremove(values, 1))
 					if #values == 0 then
 						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", 1, pull)
