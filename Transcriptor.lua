@@ -172,7 +172,6 @@ plugin.defaultDB = {
 
 local GetOptions
 do
-	local function cmp(a, b) return a:match("%-(.*)") < b:match("%-(.*)") end
 	local sorted = {}
 	local timerEvents = {"SPELL_CAST_START", "SPELL_CAST_SUCCESS", "SPELL_AURA_APPLIED"}
 
@@ -194,29 +193,18 @@ do
 			if log.TIMERS[event] then
 				desc = ("%s\n%s\n"):format(desc, event)
 
-				local spells = CopyTable(log.TIMERS[event])
-				if spells[1] then
-					-- un-funkify this shit (convert the new indexed table format back into a keyed table)
-					for i = 1, #spells do
-						local k, v = split("=", spells[i], 2)
-						local spellName, spellId, npc = k:match("(.+)-(%d+)-(npc:%d+)") -- Armageddon-240910-npc:117269
-						k = ("%s-%s-%s"):format(spellId, spellName, npc)                -- 240910-Armageddon-npc:117269
-						spells[k] = v
-						spells[i] = nil
-					end
-				end
+				for k, v in next, log.TIMERS[event] do sorted[k] = v end
+				sort(sorted, function(a, b) return a:match("^(.+)-%d+") < b:match("^(.+)-%d+") end) -- sort by spell name
 
-				wipe(sorted)
-				for spell in next, spells do sorted[#sorted + 1] = spell end
-				sort(sorted, cmp)
 				for _, spell in ipairs(sorted) do
-					local spellId, spellName = split("-", spell, 2)
-					local npc = spellName:match("-(npc:.+)")
-					if npc then
-						spellName = spellName:gsub("%-npc:.+$", "")
-						npc = (" %s"):format(npc)
+					local info, times = split("=", spell, 2)
+					local spellName, spellId, npc = info:match("^(.+)-(%d+)-(npc:%d+)")
+					if npc == "npc:1" then
+						npc = nil
+					else
+						npc = " "..npc
 					end
-					local values = {split(",", (spells[spell]:gsub("%b[]","")))}
+					local values = {split(",", (times:gsub("%b[]","")))}
 					local _, pull = split(":", tremove(values, 1))
 					if #values == 0 then
 						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", 1, pull)
@@ -234,7 +222,7 @@ do
 								local v = tonumber(values[i])
 								if not v then -- handle "stage" times
 									if values[i+1] then
-										local fromStage,fromLast = trim(values[i+1]):match("^(.+)/(.+)$")
+										local fromStage, fromLast = trim(values[i+1]):match("^(.+)/(.+)$")
 										if fromLast then
 											values[i] = ("|cffffff9a%s (+%s)|r"):format(values[i], fromStage)
 											values[i+1] = fromLast
@@ -255,10 +243,11 @@ do
 									values[i] = ("\n    %s"):format(values[i])
 								end
 							end
-							desc = ("%s|cfffed000%s (%d)|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, count + 1, total / count, low, high, pull, concat(values, ", "))
+							desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, npc or "", count + 1, total / count, low, high, pull, concat(values, ", "))
 						end
 					end
 				end
+				wipe(sorted)
 			end
 		end
 
