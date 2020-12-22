@@ -505,7 +505,7 @@ end
 function plugin:BigWigs_ProfileUpdate()
 	self:Disable()
 	self:Enable()
-	self:Refresh()
+	Refresh()
 end
 
 function plugin:OnPluginEnable()
