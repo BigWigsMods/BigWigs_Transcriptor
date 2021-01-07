@@ -576,7 +576,7 @@ end
 
 function plugin:BigWigs_OnBossWin(_, module)
 	if not module.engageId then
-		self:ScheduleTimer("Stop", 5) -- catch the end events
+		self:ScheduleTimer("Stop", 12) -- catch the end events
 	end
 end
 
@@ -592,7 +592,7 @@ function plugin:ENCOUNTER_START(_, id, name, diff, size)
 end
 
 function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
-	self:ScheduleTimer("Stop", 5) -- catch the end events
+	self:ScheduleTimer("Stop", status == 0 and 5 or 12) -- catch the end events
 end
 
 function plugin:Start()
