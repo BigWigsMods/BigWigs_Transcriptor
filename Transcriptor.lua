@@ -273,7 +273,7 @@ do
 			Transcriptor:ClearAll()
 		end
 		GameTooltip:Hide()
-		collectgarbage()
+		--collectgarbage()
 	end
 	local function disabled(info)
 		return InCombatLockdown()
@@ -285,6 +285,7 @@ do
 		ENCOUNTER_START = "COMBAT",
 		ENCOUNTER_END = "COMBAT",
 		BOSS_KILL = "COMBAT",
+		INSTANCE_ENCOUNTER_ENGAGE_UNIT = "COMBAT",
 		CHAT_MSG_MONSTER_EMOTE = "MONSTER",
 		CHAT_MSG_MONSTER_SAY = "MONSTER",
 		CHAT_MSG_MONSTER_WHISPER = "MONSTER",
@@ -299,6 +300,8 @@ do
 		UNIT_SPELLCAST_INTERRUPTED = "UNIT_SPELLCAST",
 		UNIT_SPELLCAST_CHANNEL_START = "UNIT_SPELLCAST",
 		UNIT_SPELLCAST_CHANNEL_STOP = "UNIT_SPELLCAST",
+		UNIT_TARGET = "UNIT_SPELLCAST",
+		UNIT_TARGETABLE_CHANGED = "UNIT_SPELLCAST",
 		ZONE_CHANGED = "ZONE_CHANGED",
 		ZONE_CHANGED_INDOORS = "ZONE_CHANGED",
 		ZONE_CHANGED_NEW_AREA = "ZONE_CHANGED",
@@ -313,7 +316,9 @@ do
 		ARENA_OPPONENT_UPDATE = "PVP",
 		BigWigs_Message = "BigWigs",
 		BigWigs_StartBar = "BigWigs",
+		BigWigs_Debug = "BigWigs",
 		DBM_Announce = "DBM",
+		DBM_Debug = "DBM",
 		DBM_TimerStart = "DBM",
 		DBM_TimerStop = "DBM",
 	}
@@ -422,7 +427,7 @@ do
 							type = "execute",
 							name = RESET,
 							func = function()
-								wipe(TranscriptIgnore)
+								TranscriptIgnore = {}
 							end,
 							width = "full",
 							order = 0,
