@@ -9,10 +9,14 @@ on:
     paths-ignore:
       - '.github/**'
 
+env:
+  CF_API_KEY: ${{ secrets.CF_API_KEY }}
+  WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+  GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags') == true || (!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]'))
 
     steps:
       - name: Checkout addon
@@ -25,9 +29,10 @@ jobs:
         with:
           args: -qo 011
 
-      - name: Package
+      - name: Package BCC
         uses: BigWigsMods/packager@master
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
-          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: -g bcc
+
+      - name: Package Retail
+        uses: BigWigsMods/packager@master
