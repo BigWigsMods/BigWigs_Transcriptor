@@ -29,10 +29,6 @@ jobs:
         with:
           args: -qo 011
 
-      - name: Package BCC
-        uses: BigWigsMods/packager@master
+      - uses: BigWigsMods/packager@master
         with:
-          args: -g bcc
-
-      - name: Package Retail
-        uses: BigWigsMods/packager@master
+          args: -S
