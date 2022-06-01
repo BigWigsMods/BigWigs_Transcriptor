@@ -1,4 +1,4 @@
-## Interface: 90200
+## Interface: 90205
 ## Interface-BCC: 20503
 ## Title: BigWigs |cffff0000+|r|cffffffffTranscriptor|r
 ## Notes: Simple addon that uses BigWigs for pull/win/wipe detection and starts or stops Transcriptor logging accordingly.
