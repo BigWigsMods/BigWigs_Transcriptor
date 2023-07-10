@@ -27,8 +27,7 @@ local function quartiles(t)
 		if v then
 			temp[#temp+1] = v
 		elseif t[i]:find("/", nil, true) then
-			local _,v = split("/", t[i])
-			v = tonumber(v)
+			v = tonumber(trim(t[i]):match("^%d+.*/(.-)$")) -- just use the last value
 			if v then
 				temp[#temp+1] = v
 			end
@@ -200,51 +199,63 @@ do
 					local info, times = split("=", spell, 2)
 					local spellName, spellId, npc = info:match("^(.+)-(%d+)-(npc:%d+)")
 					if npc == "npc:1" then
-						npc = nil
+						npc = ""
 					else
 						npc = " "..npc
 					end
 					local values = {split(",", (times:gsub("%b[]","")))}
 					local _, pull = split(":", tremove(values, 1))
-					if #values == 0 then
-						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", 1, pull)
+					local sincePull, sincePreviousEvent = pull:match("^(.+)/(.+/.+)")
+					-- use the lower and upper quartiles to find outliers
+					local q1, q3, low, high, count = quartiles(values)
+					if count == 0 then
+						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%s|r\n"):format(desc, spellName, spellId, npc, count + 1, sincePull or pull)
+						if sincePull then
+							desc = ("%s    |cffffff9a(%s)|r\n"):format(desc, sincePreviousEvent:gsub("/", "+", 1))
+						end
+					elseif low == high then
+						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%s|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc, count + 1, sincePull or pull, low)
 					else
-						-- use the lower and upper quartiles to find outliers
-						local q1, q3, low, high, count = quartiles(values)
-						if low == high then
-							desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | From pull: |cff20ff20%.01f|r | CD: |cff20ff20%.01f|r\n"):format(desc, spellName, spellId, npc or "", count + 1, pull, low)
-						else
-							local iqr = q3 - q1
-							local lower = q1 - (1.5 * iqr)
-							local upper = q3 + (1.5 * iqr)
-							local count, total = 0, 0
-							for i = 1, #values do
-								local v = tonumber(values[i])
-								if not v then -- handle "stage" times
-									if values[i+1] then
-										local fromStage, fromLast = trim(values[i+1]):match("^(.+)/(.+)$")
-										if fromLast then
-											values[i] = ("|cffffff9a%s (+%s)|r"):format(values[i], fromStage)
-											values[i+1] = fromLast
+						if sincePull then
+							pull = tonumber(sincePull)
+							tinsert(values, 1, sincePreviousEvent)
+						end
+						local iqr = q3 - q1
+						local lower = q1 - (1.5 * iqr)
+						local upper = q3 + (1.5 * iqr)
+						count = 0
+						local total = 0
+						local list = {}
+						for i = 1, #values do
+							local v = tonumber(values[i])
+							if not v then -- handle special events
+								local stageValues = { split("/", values[i]) }
+								if #stageValues > 1 then
+									local fromStage, fromLast = trim(stageValues[1]), trim(stageValues[#stageValues])
+									if not tonumber(fromStage) then -- special event name
+										if fromStage == "TooManyStages" then -- actually a set of ending values
+											v = tonumber(fromLast)
+										elseif #stageValues == 2 then -- special event values (sanity check)
+											list[#list + 1] = ("|cffffff9a(%s+%s)|r"):format(fromStage, fromLast)
 										end
-									else
-										values[i] = ("|cffffff9a%s|r"):format(values[i])
+									else -- ending values, just use the time since last value
+										v = tonumber(fromLast)
 									end
-								else
-									if lower <= v and v <= upper then
-										count = count + 1
-										total = total + v
-									else
-										v = ("|cffff7f3f%s|r"):format(v) -- outlier
-									end
-									values[i] = v
-								end
-								if i % 24 == 0 then -- simple wrapping
-									values[i] = ("\n    %s"):format(values[i])
 								end
 							end
-							desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, npc or "", count + 1, total / count, low, high, pull, concat(values, ", "))
+							if v then
+								if lower <= v and v <= upper then
+									count = count + 1
+									total = total + v
+								else
+									v = ("|cffff7f3f%s|r"):format(v) -- outlier
+								end
+								local num = #list + 1
+								list[num] = num % 24 == 0 and ("\n    %s"):format(v) or v -- simple wrapping
+							end
 						end
+						local avg = total / count
+						desc = ("%s|cfffed000%s (%d)%s|r | Count: |cff20ff20%d|r | Avg: |cff20ff20%.01f|r | Min: |cff20ff20%.01f|r | Max: |cff20ff20%.01f|r | From pull: |cff20ff20%.01f|r\n    %s\n"):format(desc, spellName, spellId, npc, count + 1, avg, low, high, pull, concat(list, ", "))
 					end
 				end
 				wipe(sorted)
