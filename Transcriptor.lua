@@ -290,50 +290,6 @@ do
 		return InCombatLockdown()
 	end
 
-	local eventCategories = {
-		PLAYER_REGEN_DISABLED = "COMBAT",
-		PLAYER_REGEN_ENABLED = "COMBAT",
-		ENCOUNTER_START = "COMBAT",
-		ENCOUNTER_END = "COMBAT",
-		BOSS_KILL = "COMBAT",
-		INSTANCE_ENCOUNTER_ENGAGE_UNIT = "COMBAT",
-		CHAT_MSG_MONSTER_EMOTE = "MONSTER",
-		CHAT_MSG_MONSTER_SAY = "MONSTER",
-		CHAT_MSG_MONSTER_WHISPER = "MONSTER",
-		CHAT_MSG_MONSTER_YELL = "MONSTER",
-		CHAT_MSG_RAID_BOSS_EMOTE = "MONSTER",
-		CHAT_MSG_RAID_BOSS_WHISPER = "MONSTER",
-		RAID_BOSS_EMOTE = "MONSTER",
-		RAID_BOSS_WHISPER = "MONSTER",
-		UNIT_SPELLCAST_START = "UNIT_SPELLCAST",
-		UNIT_SPELLCAST_STOP = "UNIT_SPELLCAST",
-		UNIT_SPELLCAST_SUCCEEDED = "UNIT_SPELLCAST",
-		UNIT_SPELLCAST_INTERRUPTED = "UNIT_SPELLCAST",
-		UNIT_SPELLCAST_CHANNEL_START = "UNIT_SPELLCAST",
-		UNIT_SPELLCAST_CHANNEL_STOP = "UNIT_SPELLCAST",
-		UNIT_TARGET = "UNIT_SPELLCAST",
-		UNIT_TARGETABLE_CHANGED = "UNIT_SPELLCAST",
-		ZONE_CHANGED = "ZONE_CHANGED",
-		ZONE_CHANGED_INDOORS = "ZONE_CHANGED",
-		ZONE_CHANGED_NEW_AREA = "ZONE_CHANGED",
-		SCENARIO_UPDATE = "SCENARIO",
-		SCENARIO_CRITERIA_UPDATE = "SCENARIO",
-		PLAY_MOVIE = "MOVIE",
-		CINEMATIC_START = "MOVIE",
-		START_TIMER = "PVP",
-		CHAT_MSG_BG_SYSTEM_HORDE = "PVP",
-		CHAT_MSG_BG_SYSTEM_ALLIANCE = "PVP",
-		CHAT_MSG_BG_SYSTEM_NEUTRAL = "PVP",
-		ARENA_OPPONENT_UPDATE = "PVP",
-		BigWigs_Message = "BigWigs",
-		BigWigs_StartBar = "BigWigs",
-		BigWigs_Debug = "BigWigs",
-		DBM_Announce = "DBM",
-		DBM_Debug = "DBM",
-		DBM_TimerStart = "DBM",
-		DBM_TimerStop = "DBM",
-	}
-
 	function GetOptions()
 		local logs = Transcriptor:GetAll()
 		local count = 0
@@ -450,7 +406,8 @@ do
 
 		local ignoredEvents = options.args.ignoredEvents.args
 		for _, event in next, Transcriptor.events do
-			local cat = eventCategories[event] or "GENERAL"
+			local cat = Transcriptor.EventCategories[event] or "GENERAL"
+			if cat == "NONE" then cat = "GENERAL" end
 			if not ignoredEvents[cat] then
 				ignoredEvents[cat] = {
 					type = "group", inline = true,
