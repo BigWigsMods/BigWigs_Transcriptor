@@ -11,9 +11,10 @@
 ## LoadOnDemand: 1
 ## X-License: All Rights Reserved: You are free to fork and modify on GitHub, please ask us about anything else.
 ## X-Category: Development Tools
+## X-Curse-Project-ID: 53389
+## X-Wago-ID: ZKbe5d61
 ## X-BigWigs-LoadOn-CoreEnabled: 1
 ## X-BigWigs-LoadOn-Slash: /bwts
-## X-Curse-Project-ID: 53389
 
 Transcriptor.lua
 Locales.lua
