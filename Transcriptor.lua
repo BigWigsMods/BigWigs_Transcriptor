@@ -569,8 +569,8 @@ function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
 end
 
 function plugin:Start()
-	local _, instanceType = GetInstanceInfo()
-	if instanceType ~= "raid" and self.db.profile.raid then return end
+	local _, instanceType, diff = GetInstanceInfo()
+	if (instanceType ~= "raid" and diff ~= 198 and diff ~= 215) and self.db.profile.raid then return end -- diff check for SoD raids
 
 	if timer then
 		self:CancelTimer(timer)
