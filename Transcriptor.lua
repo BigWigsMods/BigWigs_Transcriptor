@@ -541,20 +541,20 @@ function plugin:BigWigs_StopPull()
 	end
 end
 
-function plugin:BigWigs_OnBossEngage(_, module, diff)
-	if not module.engageId then
+function plugin:BigWigs_OnBossEngage(_, module)
+	if not module:GetEncounterID() then
 		self:Start()
 	end
 end
 
 function plugin:BigWigs_OnBossWin(_, module)
-	if not module.engageId then
+	if not module:GetEncounterID() then
 		self:ScheduleTimer("Stop", 12) -- catch the end events
 	end
 end
 
 function plugin:BigWigs_OnBossWipe(_, module)
-	if not module.engageId then
+	if not module:GetEncounterID() then
 		self:Stop()
 	end
 end
