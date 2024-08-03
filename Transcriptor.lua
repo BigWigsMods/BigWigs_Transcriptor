@@ -518,7 +518,15 @@ end
 
 SLASH_BigWigs_Transcriptor1 = "/bwts"
 SlashCmdList.BigWigs_Transcriptor = function()
-	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
+	if not BigWigsOptions and BigWigs then
+		-- X-BigWigs-LoadOn-CoreEnabled probably loaded the plugin so options weren't loaded with /bwts
+		_G.C_AddOns.LoadAddOn("BigWigs_Options")
+	end
+	if BigWigsOptions then
+		BigWigsOptions:Open()
+		BigWigsOptions:Close()
+		LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
+	end
 end
 
 -------------------------------------------------------------------------------
