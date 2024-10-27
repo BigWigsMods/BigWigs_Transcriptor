@@ -586,6 +586,16 @@ function plugin:Start()
 	end
 end
 
+local function PrintMemory()
+	if not Transcriptor:IsLogging() then -- Make sure we didn't start logging during the delay
+		UpdateAddOnMemoryUsage()
+		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+		if mem > 60 then
+			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
+		end
+	end
+end
+
 function plugin:Stop(silent)
 	logging = nil
 	if not Transcriptor:IsLogging() then return end
@@ -642,10 +652,6 @@ function plugin:Stop(silent)
 
 	if not silent then
 		-- check memory
-		UpdateAddOnMemoryUsage()
-		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-		if mem > 60 then
-			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
-		end
+		C_Timer.After(30, PrintMemory) -- Delay to allow time for garbage to collect
 	end
 end
