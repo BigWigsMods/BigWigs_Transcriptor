@@ -627,7 +627,7 @@ function plugin:Stop(silent)
 			for name, log in next, Transcriptor:GetAll() do
 				local e = parseLogInfo(name, log)
 				if name ~= logName and e == encounter then
-					Transcriptor:Clear(logName)
+					Transcriptor:Clear(name)
 				end
 			end
 		else
