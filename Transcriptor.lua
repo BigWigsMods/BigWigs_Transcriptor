@@ -12,7 +12,9 @@ if not plugin then return end
 --
 
 -- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
-local ipairs, next, print, split, trim = ipairs, next, print, string.split, string.trim
+-- luacheck: globals UpdateAddOnMemoryUsage GetAddOnMemoryUsage date
+-- luacheck: globals SLASH_BigWigs_Transcriptor1 SlashCmdList
+local ipairs, next, print, split, trim = ipairs, next, print, strsplit, strtrim
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
 
@@ -75,6 +77,8 @@ local diffShort = {
 	[19] = "5E",
 	[23] = "5M",
 	[24] = "5TW",
+	[198] = "10N",
+	[215] = "20N",
 }
 
 local function parseLogInfo(logName, log)
@@ -115,7 +119,8 @@ local function parseLogInfo(logName, log)
 	end
 
 	local diffName = diffShort[tonumber(diff)] or GetDifficultyInfo(diff) or diff
-	local zone = GetRealZoneText(map) or tostring(map)
+	local zone = GetRealZoneText(map)
+	if not zone or zone == "" then zone = tostring(map) end
 	local info = ("%s - |cffffffff%s|r (%s)"):format(zone, encounter or UNKNOWN, diffName)
 	local timestamp = time({day=day,month=month,year=year,hour=hour,min=min,sec=sec})
 
@@ -153,6 +158,10 @@ L["%d stored events over %.01f seconds. %s"] = true
 L["Ignored Events"] = true
 L["Clear All"] = true
 
+L["In Raids"] = true
+L["In Dungeons"] = true
+L["Specific Instances"] = true
+
 L.win = " |cff20ff20" .. _G.WIN .. "|r"
 L.failed = " |cffff2020" .. _G.FAILED .. "|r"
 
@@ -161,12 +170,12 @@ L.failed = " |cffff2020" .. _G.FAILED .. "|r"
 --
 
 plugin.defaultDB = {
-	enabled = false,
+	enable = "none",
+	instances = {},
 	onpull = false,
 	details = false,
 	delete = false,
 	keepone = false,
-	raid = false,
 }
 
 local GetOptions
@@ -312,19 +321,49 @@ do
 					width = "full",
 					order = 1,
 				},
-				enabled = {
-					type = "toggle",
+				enable = {
+					type = "select",
 					name = ENABLE,
 					get = get,
 					set = set_reboot,
+					values = {
+						none = _G.NEVER,
+						all = _G.ALWAYS,
+						raid = L["In Raids"],
+						party = L["In Dungeons"],
+						instance = L["Specific Instances"],
+					},
+					sorting = { "none", "all", "raid", "party", "instance" },
 					order = 2,
 				},
-				raid = {
-					type = "toggle",
-					name = L["Raid only"],
-					desc = L["Only enable logging while in a raid instance."],
-					get = get,
-					set = set,
+				instances = {
+					type = "multiselect",
+					name = L["Specific Instances"],
+					get = function(_, key)
+						if plugin.db.profile.enable == "instance" then
+							return plugin.db.profile.instances[key]
+						end
+					end,
+					set = function(_, key, value)
+						plugin.db.profile.instances[key] = value or nil
+					end,
+					values = function()
+						local values = {}
+						if not Transcriptor.INSTANCES then
+							return values
+						end
+						for id in next, Transcriptor.INSTANCES do
+							local zone = GetRealZoneText(id)
+							if zone and zone ~= "" then
+								values[id] = zone -- or id
+							end
+						end
+						return values
+					end,
+					disabled = function()
+						return plugin.db.profile.enable ~= "instance"
+					end,
+					control = "Dropdown",
 					order = 3,
 				},
 				onpull = {
@@ -475,17 +514,35 @@ local function Refresh()
 	end
 end
 
-function plugin:BigWigs_ProfileUpdate()
-	self:Disable()
-	self:Enable()
-	Refresh()
+function plugin:BigWigs_ProfileUpdate(reboot)
+	local db = self.db.profile
+	-- upgrade
+	if db.enabled ~= nil then
+		if db.enabled then
+			db.enable = db.raid and "raid" or "all"
+		end
+	end
+	-- cleanup
+	db.enabled = nil
+	db.raid = nil
+	if db.game_version ~= WOW_PROJECT_ID then
+		wipe(db.instances)
+	end
+	db.game_version = WOW_PROJECT_ID
+
+	-- reboot if not OnRegister
+	if reboot then
+		self:Disable()
+		self:Enable()
+		Refresh()
+	end
+end
+
+function plugin:OnRegister()
+	self:BigWigs_ProfileUpdate()
 end
 
 function plugin:OnPluginEnable()
-	-- cleanup old savedvars
-	self.db.profile.ignoredEvents = nil
-	self.db.global.ignoredEvents = nil
-
 	-- try to fix memory overflow error
 	if Transcriptor and TranscriptDB == nil then
 		print("\n|cffff2020" .. L["Your Transcriptor DB has been reset! You can still view the contents of the DB in your SavedVariables folder until you exit the game or reload your UI."])
@@ -493,7 +550,7 @@ function plugin:OnPluginEnable()
 	end
 
 	self:RegisterMessage("BigWigs_ProfileUpdate")
-	if self.db.profile.enabled then
+	if self.db.profile.enable ~= "none" then
 		if self.db.profile.onpull then
 			self:RegisterMessage("BigWigs_StartPull")
 			self:RegisterMessage("BigWigs_StopPull")
@@ -568,7 +625,6 @@ function plugin:BigWigs_OnBossWipe(_, module)
 end
 
 function plugin:ENCOUNTER_START(_, id, name, diff, size)
-	-- XXX this will start logging dungeons and shit for people without little wigs
 	self:Start()
 end
 
@@ -577,14 +633,28 @@ function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
 end
 
 function plugin:Start()
-	local _, instanceType, diff = GetInstanceInfo()
-	if (instanceType ~= "raid" and diff ~= 198 and diff ~= 215) and self.db.profile.raid then return end -- diff check for SoD raids
+	local enable = self.db.profile.enable
+	if enable == "none" then
+		return
+	elseif enable ~= "all" then
+		local _, instanceType, diff, _, _, _, _, instanceId = GetInstanceInfo()
+		if diff == 198 or diff == 215 then -- 10/20 player SoD instances (marked as party dungeon/normal)
+			instanceType = "raid"
+		end
+		if enable == "instance" then
+			if not self.db.profile.instances[instanceId] then
+				return
+			end
+		elseif enable ~= instanceType then
+			return
+		end
+	end
 
 	if timer then
 		self:CancelTimer(timer)
 		timer = nil
 	end
-	-- stop your current log and start a new one
+	-- stop your non-bwts log and start a new one
 	if Transcriptor:IsLogging() and not logging then
 		self:Stop(true)
 	end
