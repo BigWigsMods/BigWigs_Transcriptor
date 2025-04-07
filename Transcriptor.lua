@@ -12,7 +12,7 @@ if not plugin then return end
 --
 
 -- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
--- luacheck: globals UpdateAddOnMemoryUsage GetAddOnMemoryUsage date
+-- luacheck: globals UpdateAddOnMemoryUsage GetAddOnMemoryUsage date time
 -- luacheck: globals SLASH_BigWigs_Transcriptor1 SlashCmdList
 local ipairs, next, print, split, trim = ipairs, next, print, strsplit, strtrim
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
@@ -590,12 +590,17 @@ end
 -- Event Handlers
 --
 
-function plugin:BigWigs_StartPull(_, _, seconds)
-	if seconds > 2 then
-		self:CancelTimer(timer)
-		timer = self:ScheduleTimer("Start", seconds-2)
-	else
-		self:Start()
+do
+	local function Start() plugin:Start() end
+	function plugin:BigWigs_StartPull(_, _, seconds)
+		if seconds > 2 then
+			if timer then
+				self:CancelTimer(timer)
+			end
+			timer = self:ScheduleTimer(Start, seconds-2)
+		else
+			self:Start()
+		end
 	end
 end
 
@@ -612,24 +617,27 @@ function plugin:BigWigs_OnBossEngage(_, module)
 	end
 end
 
-function plugin:BigWigs_OnBossWin(_, module)
-	if not module:GetEncounterID() then
-		self:ScheduleTimer("Stop", 12) -- catch the end events
-	end
-end
-
 function plugin:BigWigs_OnBossWipe(_, module)
 	if not module:GetEncounterID() then
 		self:Stop()
 	end
 end
 
-function plugin:ENCOUNTER_START(_, id, name, diff, size)
-	self:Start()
+do
+	local function Stop() plugin:Stop() end
+	function plugin:BigWigs_OnBossWin(_, module)
+		if not module:GetEncounterID() then
+			self:ScheduleTimer(Stop, 12) -- catch the end events
+		end
+	end
+
+	function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
+		self:ScheduleTimer(Stop, status == 0 and 5 or 12) -- catch the end events
+	end
 end
 
-function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
-	self:ScheduleTimer("Stop", status == 0 and 5 or 12) -- catch the end events
+function plugin:ENCOUNTER_START(_, id, name, diff, size)
+	self:Start()
 end
 
 function plugin:Start()
