@@ -205,8 +205,8 @@ do
 				sort(sorted, function(a, b) return a:match("^(.+)-%d+") < b:match("^(.+)-%d+") end) -- sort by spell name
 
 				for _, spell in ipairs(sorted) do
-					local info, times = split("=", spell, 2)
-					local spellName, spellId, npc = info:match("^(.+)-(%d+)-(npc:%d+)")
+					local text, times = split("=", spell, 2)
+					local spellName, spellId, npc = text:match("^(.+)-(%d+)-(npc:%d+)")
 					if npc == "npc:1" then
 						npc = ""
 					else
@@ -617,14 +617,14 @@ function plugin:BigWigs_OnBossEngage(_, module)
 	end
 end
 
-function plugin:BigWigs_OnBossWipe(_, module)
-	if not module:GetEncounterID() then
-		self:Stop()
-	end
-end
-
 do
 	local function Stop() plugin:Stop() end
+	function plugin:BigWigs_OnBossWipe(_, module)
+		if not module:GetEncounterID() then
+			self:ScheduleTimer(Stop, 5) -- catch the end events
+		end
+	end
+
 	function plugin:BigWigs_OnBossWin(_, module)
 		if not module:GetEncounterID() then
 			self:ScheduleTimer(Stop, 12) -- catch the end events
@@ -702,8 +702,8 @@ function plugin:Stop(silent)
 		local encounter, _, _, _, isWin = parseLogInfo(logName, log)
 		if isWin then
 			-- delete previous logs
-			for name, log in next, Transcriptor:GetAll() do
-				local e = parseLogInfo(name, log)
+			for name, storedLog in next, Transcriptor:GetAll() do
+				local e = parseLogInfo(name, storedLog)
 				if name ~= logName and e == encounter then
 					Transcriptor:Clear(name)
 				end
@@ -713,8 +713,8 @@ function plugin:Stop(silent)
 			local encounterLogs = {}
 			local lastWin, lastWinTime = nil, nil
 			local longLog, longLogTime = nil, nil
-			for name, log in next, Transcriptor:GetAll() do
-				local e, t, _, _, k, d = parseLogInfo(name, log)
+			for name, storedLog in next, Transcriptor:GetAll() do
+				local e, t, _, _, k, d = parseLogInfo(name, storedLog)
 				if e == encounter then
 					encounterLogs[name] = true
 					if k and (not lastWin or t > lastWinTime) then
