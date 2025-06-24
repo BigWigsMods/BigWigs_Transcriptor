@@ -13,7 +13,6 @@ if not plugin then return end
 
 -- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
 -- luacheck: globals UpdateAddOnMemoryUsage GetAddOnMemoryUsage date time
--- luacheck: globals SLASH_BigWigs_Transcriptor1 SlashCmdList
 local ipairs, next, print, split, trim = ipairs, next, print, strsplit, strtrim
 local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
@@ -573,18 +572,9 @@ function plugin:OnPluginDisable()
 	timer = nil
 end
 
-SLASH_BigWigs_Transcriptor1 = "/bwts"
-SlashCmdList.BigWigs_Transcriptor = function()
-	if not BigWigsOptions and BigWigs then
-		-- X-BigWigs-LoadOn-CoreEnabled probably loaded the plugin so options weren't loaded with /bwts
-		_G.C_AddOns.LoadAddOn("BigWigs_Options")
-	end
-	if BigWigsOptions then
-		BigWigsOptions:Open()
-		BigWigsOptions:Close()
-		LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
-	end
-end
+BigWigsAPI.RegisterSlashCommand("bwts", function()
+	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
+end)
 
 -------------------------------------------------------------------------------
 -- Event Handlers
