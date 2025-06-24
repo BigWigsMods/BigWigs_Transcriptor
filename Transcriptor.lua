@@ -572,7 +572,7 @@ function plugin:OnPluginDisable()
 	timer = nil
 end
 
-BigWigsAPI.RegisterSlashCommand("bwts", function()
+BigWigsAPI.RegisterSlashCommand("/bwts", function()
 	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
 end)
 
