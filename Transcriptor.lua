@@ -81,14 +81,13 @@ local diffShort = {
 }
 
 local function parseLogInfo(logName, log)
-	-- logNameFormat = "[%s]@[%s] - Zone:%d Difficulty:%d,%s Type:%s " .. format("Version: %s.%s", wowVersion, buildRevision)
-	-- "[2018-09-04]@[18:11:58] - Zone:1763 Difficulty:8,5Challenge Type:party Version: 8.0.1.27547"
-	local year, month, day, hour, min, sec, map, diff, _, _, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone:(%d+) Difficulty:(%d+),(.+) Type:(.+) Version: (.+)$")
+	-- logNameFormat = "[2026-02-23]@[22:08:08] - Zone#2915 (Nexus-Point Xenas)#Difficulty#8 (Mythic+)#Type#party#WoWVer#12.0.1.66017#TSVer#v12.0.5"
+	local year, month, day, hour, min, sec, map, diff, version, tsVersion = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone#(%d+).+#Difficulty#(%d+).+#Type#.+#WoWVer#(.+)#TSVer#(.+)$")
 	if not version then
 		-- try previous format
-		-- logNameFormat = "[%s]@[%s] - %d/%d/%s/%s/%s@%s" .. format(" (%s) (%s.%s)", version, wowVersion, buildRevision)
-		-- "[2017-06-20]@[23:26:47] - 1147/1676/Tomb of Sargeras/Tomb of Sargeras/The Twisting Nether@Heroic (v7.2.0) (7.2.5.24367)"
-		year, month, day, hour, min, sec, map, diff, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- %d+/(%d+)/.-/.-/.-@(.-) %(.-%) %((.-)%)$")
+		-- logNameFormat = "[%s]@[%s] - Zone:%d Difficulty:%d,%s Type:%s " .. format("Version: %s.%s", wowVersion, buildRevision)
+		-- "[2018-09-04]@[18:11:58] - Zone:1763 Difficulty:8,5Challenge Type:party Version: 8.0.1.27547"
+		year, month, day, hour, min, sec, map, diff, _, _, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone:(%d+) Difficulty:(%d+),(.+) Type:(.+) Version: (.+)$")
 	end
 	if not version then return end
 
