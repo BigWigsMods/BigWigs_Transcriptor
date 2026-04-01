@@ -1,4 +1,4 @@
-## Interface: 11508, 11507, 20505, 30405, 38000, 40402, 50503, 50502, 120001, 110207, 120000
+## Interface: 11508, 11507, 20505, 30405, 38000, 40402, 50503, 50502, 120001, 120005, 120000
 ## Title: BigWigs |cffff0000+|r|cffffffffTranscriptor|r
 ## Notes: Simple addon that uses BigWigs for pull/win/wipe detection and starts or stops Transcriptor logging accordingly.
 ## IconTexture: Interface\AddOns\BigWigs\Media\Icons\core-enabled
