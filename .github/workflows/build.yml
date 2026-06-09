@@ -9,11 +9,6 @@ on:
     paths-ignore:
       - '.github/**'
 
-env:
-  CF_API_KEY: ${{ secrets.CF_API_KEY }}
-  WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-  GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,15 +17,18 @@ jobs:
 
     steps:
       - name: Checkout addon
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Run luacheck
-        uses: BigWigsMods/actions/luacheck@master
+        uses: BigWigsMods/luacheck@main
         with:
-          args: -qo 011
+          args: -q
 
-      - uses: BigWigsMods/packager@master
-        with:
-          args: -S
+      - name: Package
+        uses: BigWigsMods/packager@master
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

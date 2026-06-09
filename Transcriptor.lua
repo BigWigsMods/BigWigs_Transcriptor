@@ -11,10 +11,8 @@ if not plugin then return end
 -- Locals
 --
 
--- luacheck: globals Transcriptor TranscriptDB TranscriptIgnore
--- luacheck: globals UpdateAddOnMemoryUsage GetAddOnMemoryUsage date time
-local ipairs, next, print, split, trim = ipairs, next, print, strsplit, strtrim
-local sort, concat, tremove, wipe = table.sort, table.concat, table.remove, table.wipe
+local ipairs, next, print, split, trim = ipairs, next, print, string.split, string.trim
+local sort, concat, tinsert, tremove, wipe = table.sort, table.concat, table.insert, table.remove, table.wipe
 local tonumber, ceil, floor = tonumber, math.ceil, math.floor
 
 local logging = nil
@@ -82,7 +80,7 @@ local diffShort = {
 
 local function parseLogInfo(logName, log)
 	-- logNameFormat = "[2026-02-23]@[22:08:08] - Zone#2915 (Nexus-Point Xenas)#Difficulty#8 (Mythic+)#Type#party#WoWVer#12.0.1.66017#TSVer#v12.0.5"
-	local year, month, day, hour, min, sec, map, diff, version, tsVersion = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone#(%d+).+#Difficulty#(%d+).+#Type#.+#WoWVer#(.+)#TSVer#(.+)$")
+	local year, month, day, hour, min, sec, map, diff, version = logName:match("^%[(%d+)-(%d+)-(%d+)%]@%[(%d+):(%d+):(%d+)%] %- Zone#(%d+).+#Difficulty#(%d+).+#Type#.+#WoWVer#(.+)#TSVer#(.+)$")
 	if not version then
 		-- try previous format
 		-- logNameFormat = "[%s]@[%s] - Zone:%d Difficulty:%d,%s Type:%s " .. format("Version: %s.%s", wowVersion, buildRevision)
@@ -293,7 +291,7 @@ do
 		GameTooltip:Hide()
 		--collectgarbage()
 	end
-	local function disabled(info)
+	local function disabled()
 		return InCombatLockdown()
 	end
 
@@ -620,12 +618,12 @@ do
 		end
 	end
 
-	function plugin:ENCOUNTER_END(_, id, name, diff, size, status)
+	function plugin:ENCOUNTER_END(_, _, _, _, _, status)
 		self:ScheduleTimer(Stop, status == 0 and 5 or 12) -- catch the end events
 	end
 end
 
-function plugin:ENCOUNTER_START(_, id, name, diff, size)
+function plugin:ENCOUNTER_START()
 	self:Start()
 end
 
