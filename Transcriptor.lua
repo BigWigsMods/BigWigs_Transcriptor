@@ -570,7 +570,9 @@ function plugin:OnPluginDisable()
 end
 
 BigWigsAPI.RegisterSlashCommand("/bwts", function()
-	LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
+	if C_AddOns.LoadAddOn("BigWigs_Options") then
+		LibStub("AceConfigDialog-3.0"):Open("BigWigs", "BigWigs: Transcriptor")
+	end
 end)
 
 -------------------------------------------------------------------------------
