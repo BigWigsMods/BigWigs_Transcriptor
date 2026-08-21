@@ -16,6 +16,7 @@ not_globals = {
 read_globals = {
 	"BigWigs",
 	"BigWigsAPI",
+	"BigWigsOptions",
 	"C_Timer",
 	"date",
 	"ENABLE",
