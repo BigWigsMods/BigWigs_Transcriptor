@@ -166,6 +166,8 @@ L.failed = " |cffff2020" .. _G.FAILED .. "|r"
 --
 
 plugin.defaultDB = {
+}
+plugin.defaultGlobalDB = {
 	enable = "none",
 	instances = {},
 	onpull = false,
@@ -188,7 +190,7 @@ do
 
 		local duration = tonumber(log.total[numEvents]:match("^<(.-)%s")) or 0
 		local desc = L["%d stored events over %.01f seconds. %s"]:format(numEvents, duration, "")
-		if not log.TIMERS or not plugin.db.profile.details then
+		if not log.TIMERS or not plugin.db.global.details then
 			return desc
 		end
 
@@ -272,27 +274,33 @@ do
 
 
 	local function get(info)
-		return plugin.db.profile[info[#info]]
+		return plugin.db.global[info[#info]]
 	end
 	local function set(info, value)
-		plugin.db.profile[info[#info]] = value
+		plugin.db.global[info[#info]] = value
 	end
 	local function set_reboot(info, value)
-		plugin.db.profile[info[#info]] = value
+		plugin.db.global[info[#info]] = value
 		plugin:Disable()
 		plugin:Enable()
 	end
-	local function delete(info)
-		if info.arg then
-			Transcriptor:Clear(info.arg)
-		else
-			Transcriptor:ClearAll()
+	local delete
+	do
+		local Refresh = function() plugin:RefreshConfig() end
+		local Collect = function() plugin:SimpleTimer(Refresh, 0) collectgarbage() end
+		function delete(info)
+			if InCombatLockdown() then
+				BigWigs:Print("You must be out of combat to delete logs.")
+				return
+			end
+			if info.arg then
+				Transcriptor:Clear(info.arg)
+			else
+				Transcriptor:ClearAll()
+			end
+			GameTooltip:Hide()
+			plugin:SimpleTimer(Collect, 0)
 		end
-		GameTooltip:Hide()
-		--collectgarbage()
-	end
-	local function disabled()
-		return InCombatLockdown()
 	end
 
 	function GetOptions()
@@ -336,12 +344,12 @@ do
 					type = "multiselect",
 					name = L["Specific Instances"],
 					get = function(_, key)
-						if plugin.db.profile.enable == "instance" then
-							return plugin.db.profile.instances[key]
+						if plugin.db.global.enable == "instance" then
+							return plugin.db.global.instances[key]
 						end
 					end,
 					set = function(_, key, value)
-						plugin.db.profile.instances[key] = value or nil
+						plugin.db.global.instances[key] = value or nil
 					end,
 					values = function()
 						local values = {}
@@ -357,7 +365,7 @@ do
 						return values
 					end,
 					disabled = function()
-						return plugin.db.profile.enable ~= "instance"
+						return plugin.db.global.enable ~= "instance"
 					end,
 					control = "Dropdown",
 					order = 3,
@@ -399,7 +407,6 @@ do
 					name = L["Clear All"],
 					func = delete,
 					width = "full",
-					disabled = disabled,
 					hidden = function() return not next(logs) end,
 					order = 8,
 				},
@@ -483,7 +490,6 @@ do
 				desc = GetDescription,
 				func = delete,
 				arg = key,
-				disabled = disabled,
 				width = "full",
 				order = ts,
 			}
@@ -503,39 +509,12 @@ plugin.subPanelOptions = {
 -- Initialization
 --
 
-local function Refresh()
-	local ACR = LibStub("AceConfigRegistry-3.0", true)
-	if ACR then -- make sure it's loaded (provided by BigWigs_Options)
-		ACR:NotifyChange("BigWigs")
-	end
-end
-
-function plugin:BigWigs_ProfileUpdate(reboot)
-	local db = self.db.profile
-	-- upgrade
-	if db.enabled ~= nil then
-		if db.enabled then
-			db.enable = db.raid and "raid" or "all"
-		end
-	end
-	-- cleanup
-	db.enabled = nil
-	db.raid = nil
+function plugin:OnRegister()
+	local db = self.db.global
 	if db.game_version ~= WOW_PROJECT_ID then
-		wipe(db.instances)
+		db.instances = {}
 	end
 	db.game_version = WOW_PROJECT_ID
-
-	-- reboot if not OnRegister
-	if reboot then
-		self:Disable()
-		self:Enable()
-		Refresh()
-	end
-end
-
-function plugin:OnRegister()
-	self:BigWigs_ProfileUpdate()
 end
 
 function plugin:OnPluginEnable()
@@ -545,9 +524,8 @@ function plugin:OnPluginEnable()
 		TranscriptDB = {}
 	end
 
-	self:RegisterMessage("BigWigs_ProfileUpdate")
-	if self.db.profile.enable ~= "none" then
-		if self.db.profile.onpull then
+	if self.db.global.enable ~= "none" then
+		if self.db.global.onpull then
 			self:RegisterMessage("BigWigs_StartPull")
 			self:RegisterMessage("BigWigs_StopPull")
 		end
@@ -558,8 +536,6 @@ function plugin:OnPluginEnable()
 		self:RegisterMessage("BigWigs_OnBossWin")
 		self:RegisterMessage("BigWigs_OnBossWipe")
 	end
-	self:RegisterEvent("PLAYER_REGEN_DISABLED", Refresh)
-	self:RegisterEvent("PLAYER_REGEN_ENABLED", Refresh)
 end
 
 function plugin:OnPluginDisable()
@@ -628,7 +604,7 @@ function plugin:ENCOUNTER_START()
 end
 
 function plugin:Start()
-	local enable = self.db.profile.enable
+	local enable = self.db.global.enable
 	if enable == "none" then
 		return
 	elseif enable ~= "all" then
@@ -637,7 +613,7 @@ function plugin:Start()
 			instanceType = "raid"
 		end
 		if enable == "instance" then
-			if not self.db.profile.instances[instanceId] then
+			if not self.db.global.instances[instanceId] then
 				return
 			end
 		elseif enable ~= instanceType then
@@ -659,15 +635,15 @@ function plugin:Start()
 	end
 end
 
-local function PrintMemory()
-	if not Transcriptor:IsLogging() then -- Make sure we didn't start logging during the delay
-		UpdateAddOnMemoryUsage()
-		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
-		if mem > 60 then
-			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
-		end
-	end
-end
+--local function PrintMemory()
+--	if not Transcriptor:IsLogging() then -- Make sure we didn't start logging during the delay
+--		UpdateAddOnMemoryUsage()
+--		local mem = GetAddOnMemoryUsage("Transcriptor") / 1000
+--		if mem > 60 then
+--			print("\n|cffff2020" .. L["Transcriptor is currently using %.01f MB of memory. You should clear some logs or risk losing them."]:format(mem))
+--		end
+--	end
+--end
 
 function plugin:Stop(silent)
 	logging = nil
@@ -675,7 +651,7 @@ function plugin:Stop(silent)
 
 	local logName = Transcriptor:StopLog()
 
-	if self.db.profile.delete and logName then
+	if self.db.global.delete and logName then
 		local log = Transcriptor:Get(logName)
 		if #log.total == 0 or tonumber(log.total[#log.total]:match("^<(.-)%s")) < 30 then
 			Transcriptor:Clear(logName)
@@ -684,7 +660,7 @@ function plugin:Stop(silent)
 		end
 	end
 
-	if self.db.profile.keepone and logName then
+	if self.db.global.keepone and logName then
 		local log = Transcriptor:Get(logName)
 		local encounter, _, _, _, isWin = parseLogInfo(logName, log)
 		if isWin then
@@ -725,6 +701,6 @@ function plugin:Stop(silent)
 
 	if not silent then
 		-- check memory
-		C_Timer.After(30, PrintMemory) -- Delay to allow time for garbage to collect
+		--C_Timer.After(30, PrintMemory) -- Delay to allow time for garbage to collect
 	end
 end
